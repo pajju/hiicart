@@ -97,7 +97,7 @@ class GoogleGateway(PaymentGatewayBase):
                        "edit_cart_url": self.settings.get("EDIT_URL", None),
                        "currency": self.settings["CURRENCY"]})
         cart_xml = convertToUTF8(template.render(ctx))
-        auditing.log_with_stacktrace("Google Gateway: %s" % cart_xml)
+        auditing.log_with_stacktrace("Google Gateway: \n\n%s" % cart_xml)
         # Post to Google
         headers = {"Content-type": "application/x-www-form-urlencoded",
                    "Authorization": "Basic %s" % self.get_basic_auth()}
