@@ -8,6 +8,7 @@ from django.template import Context, loader
 from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult
 from hiicart.gateway.google.settings import SETTINGS as default_settings
 from hiicart.lib.unicodeconverter import convertToUTF8
+from hiicart.lib import auditing
 
 
 class GoogleGateway(PaymentGatewayBase):
@@ -96,6 +97,7 @@ class GoogleGateway(PaymentGatewayBase):
                        "edit_cart_url": self.settings.get("EDIT_URL", None),
                        "currency": self.settings["CURRENCY"]})
         cart_xml = convertToUTF8(template.render(ctx))
+        auditing.log_with_stacktrace("Google Gateway: %s" % cart_xml)
         # Post to Google
         headers = {"Content-type": "application/x-www-form-urlencoded",
                    "Authorization": "Basic %s" % self.get_basic_auth()}
