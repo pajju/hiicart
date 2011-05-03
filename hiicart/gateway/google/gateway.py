@@ -47,6 +47,7 @@ class GoogleGateway(PaymentGatewayBase):
         headers = {"Content-type" : "application/x-www-form-urlencoded",
                    "Authorization" : "Basic %s" % self.get_basic_auth()}
         params = urllib.urlencode(params)
+        auditing.log_with_stacktrace("Google Gateway: \n\nurl: %s\nparams: %s" % (url, params))
         return http.request(url, "POST", params, headers=headers)
 
     def cancel_recurring(self):

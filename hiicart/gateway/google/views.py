@@ -6,6 +6,7 @@ from hiicart.gateway.base import GatewayError
 from hiicart.gateway.google.gateway import GoogleGateway
 from hiicart.gateway.google.ipn import GoogleIPN
 from hiicart.utils import format_exceptions, call_func, cart_by_uuid
+from hiicart.lib import auditing
 
 
 log = logging.getLogger("hiicart.gateway.google")
@@ -41,7 +42,8 @@ def ipn(request):
         log.error('google ipn request not POSTed')
         return HttpResponseBadRequest("Requests must be POSTed")
     data = request.POST
-    log.info("IPN Notification received from Google Checkout: %s" % data)
+    #log.info("IPN Notification received from Google Checkout: %s" % data)
+    auditing.log_with_stacktrace("Google IPN: \n\n%s" % data)
     cart = _find_cart(data)
     if cart:
         gateway = GoogleGateway(cart)
@@ -82,5 +84,6 @@ def ipn(request):
     # Return ack so google knows we handled the message
     ack = "<notification-acknowledgment xmlns='http://checkout.google.com/schema/2' serial-number='%s'/>" % data["serial-number"].strip()
     response = HttpResponse(content=ack, content_type="text/xml; charset=UTF-8")
+    auditing.log_with_stacktrace("Google IPN ACK: \n\n%s" % ack)
     log.debug("Google Checkout: Sending IPN Acknowledgement")
     return response
