@@ -322,21 +322,22 @@ class HiiCartBase(models.Model):
         from hiicart.gateway.paypal.gateway import PaypalGateway
         from hiicart.gateway.paypal2.gateway import Paypal2Gateway
         from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
+        from hiicart.gateway.paypal_express_checkout.gateway import PaypalExpressCheckoutGateway
 
         """Factory to get payment gateways."""
-        if name == "amazon":
-            return AmazonGateway(self)
-        elif name == "comp":
-            return CompGateway(self)
-        elif name == "google":
-            return GoogleGateway(self)
-        elif name == "paypal":
-            return PaypalGateway(self)
-        elif name == "paypal2":
-            return Paypal2Gateway(self)
-        elif name == "paypal_adaptive":
-            return PaypalAPGateway(self)
-        else:
+        gateways = {
+            'amazon': AmazonGateway,
+            'comp': CompGateway,
+            'google': GoogleGateway,
+            'paypal': PaypalGateway,
+            'paypal2': Paypal2Gateway,
+            'paypal_adaptive': PaypalAPGateway,
+            'paypal_express_checkout': PaypalExpressCheckoutGateway,
+            }
+        try:
+            cls = gateways[name]
+            return cls(self)
+        except KeyError:
             raise HiiCartError("Unknown gateway: %s" % name)
 
     def save(self, *args, **kwargs):
