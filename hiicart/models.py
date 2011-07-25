@@ -323,6 +323,7 @@ class HiiCartBase(models.Model):
         from hiicart.gateway.paypal2.gateway import Paypal2Gateway
         from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
         from hiicart.gateway.braintree.gateway import BraintreeGateway
+        from hiicart.gateway.authorizenet.gateway import AuthorizeNetGateway    
 
         """Factory to get payment gateways."""
         if name == "amazon":
@@ -339,6 +340,8 @@ class HiiCartBase(models.Model):
             return PaypalAPGateway(self)
         elif name == "braintree":
             return BraintreeGateway(self)
+        elif name == "authorizenet":
+            return AuthorizeNetGateway(self)
         else:
             raise HiiCartError("Unknown gateway: %s" % name)
 

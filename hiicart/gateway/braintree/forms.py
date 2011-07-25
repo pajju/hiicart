@@ -75,6 +75,12 @@ class PaymentForm(forms.Form):
                     name = forms.forms.NON_FIELD_ERRORS
                 self._errors[name] = self.error_class([error])
 
+    def hidden_fields(self):
+        """
+        Get hidden fields required for this form.
+        """
+        return [self['tr_data']]
+
     @property
     def action(self):
         """
