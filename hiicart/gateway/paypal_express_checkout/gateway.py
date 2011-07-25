@@ -102,6 +102,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             params[pre+'taxamt'] = self.cart.tax
             # Not using parallel payments, so this is always Sale
             params[pre+'paymentaction'] = 'Sale'
+            params[pre+'notifyurl'] = self.settings['IPN_URL']
 
             pre = 'l_paymentrequest_0_'
 
@@ -152,10 +153,12 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             response = self._do_nvp('GetExpressCheckoutDetails', params)
             return response
 
-        def confirm(self, token, payerid):
+        def finalize(self, token, payerid):
+            """Complete payment on Paypal after user has confirmed."""
             params = self._get_checkout_data()
             params['token'] = token
             params['payerid'] = payerid
 
             response = self._do_nvp('DoExpressCheckoutPayment', params)
+            return response
 

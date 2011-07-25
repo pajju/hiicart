@@ -21,13 +21,10 @@ def _find_cart(data):
 
     return cart_by_uuid(invoice[:36])
 
-
-@csrf_view_exempt
-@format_exceptions
-@never_cache
-def ipn(request):
+def _base_paypal_ipn_listener(request, ipn_class):
     """
     PayPal IPN (Instant Payment Notification)
+    Shared between Paypal and Paypal Express Checkout
 
     Confirms that payment has been completed and marks invoice as paid.
     Adapted from IPN cgi script provided at:
@@ -45,7 +42,7 @@ def ipn(request):
     cart = _find_cart(data)
     if not cart:
         raise GatewayError('paypal gateway: Unknown transaction')
-    handler = PaypalIPN(cart)
+    handler = ipn_class(cart)
     if not handler.confirm_ipn_data(request.raw_post_data):
         log.error("Paypal IPN Confirmation Failed.")
         raise GatewayError("Paypal IPN Confirmation Failed.")
@@ -71,3 +68,10 @@ def ipn(request):
         log.info("Unknown IPN type or status. Type: %s\tStatus: %s" %
                  (status, txn_type))
     return HttpResponse()
+    
+
+@csrf_view_exempt
+@format_exceptions
+@never_cache
+def ipn(request):
+    return _base_paypal_ipn_listener(request, PaypalIPN)

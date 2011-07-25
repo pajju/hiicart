@@ -11,8 +11,8 @@ POST_TEST_URL = "https://www.sandbox.paypal.com/cgi-bin/webscr"
 class PaypalIPN(IPNBase):
     """Paypal IPN Handler"""
 
-    def __init__(self, cart):
-        super(PaypalIPN, self).__init__("paypal", cart, default_settings)
+    def __init__(self, cart, settings=default_settings):
+        super(PaypalIPN, self).__init__("paypal", cart, settings)
 
     @property
     def submit_url(self):
