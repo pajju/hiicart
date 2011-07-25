@@ -150,14 +150,17 @@ class SubmitResult(object):
     Currently supported result types are url, form, and None.
 
     url: The user should to be redirected to result.url.
+         session_args is a dict that may be necessary for subsequent calls
+         For example, Paypal Express Checkout provides a token for later API calls
     form: form_action is the target url; form_fields is a dict of form data.
     None: type is set to None if no further action is required.
     """
-    def __init__(self, type, url=None, form_data=None):
+    def __init__(self, type, url=None, form_data=None, session_args=None):
         self.type = type
         if url and form_data:
             raise GatewayError("Gateway returned url AND form data.")
         self.url = url
+        self.session_args = session_args
         if type == "form":
             self.form_action = form_data["action"]
             self.form_fields = form_data["fields"]

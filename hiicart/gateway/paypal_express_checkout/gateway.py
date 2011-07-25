@@ -144,14 +144,23 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             params = self._get_checkout_data()
             response = self._do_nvp('SetExpressCheckout', params)
             
-            url = self._create_redirect_url(response['TOKEN'])
-            return SubmitResult('url', url)
+            token = response['TOKEN']
+            url = self._create_redirect_url(token)
+            return SubmitResult('url', url, session_args={'hiicart_paypal_express_token': token})
 
         def get_details(self, token):
             """Get details from Paypal about payer and payment."""
             params = {'token' : token}
             response = self._do_nvp('GetExpressCheckoutDetails', params)
-            return response
+
+            payerid = response['PAYERID']
+            # TODO: user-defined callback on get_details to update cart?
+            
+            session_args = {
+                'hiicart_paypal_express_token': token,
+                'payerid': payerid
+                }
+            return SubmitResult('url', url, session_args=session_args)
 
         def finalize(self, token, payerid):
             """Complete payment on Paypal after user has confirmed."""

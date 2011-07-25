@@ -7,12 +7,11 @@ from hiicart.utils import format_exceptions, cart_by_uuid
 
 @never_cache
 def confirm_details(request, cart_uuid):
-    data = request.GET
+    token = request.session.get('hiicart_paypal_express_token')
     cart = cart_by_uuid(cart_uuid)
     if cart:
         gateway = PaypalExpressCheckoutGateway(cart)
 
-        token = data['token']
         details = gateway.get_details(token)
 
 @never_cache
