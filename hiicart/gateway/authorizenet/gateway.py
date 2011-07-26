@@ -47,15 +47,20 @@ class AuthorizeNetGateway(PaymentGatewayBase):
         sequence = random.randint(10000, 99999)
         timestamp = int(time.time())
         hash_message = "%s^%s^%s^%s^" % (self.settings['MERCHANT_ID'],
-                                         sequence, timestamp, self.cart.total)
+                                         timestamp, timestamp, self.cart.total)
         fp_hash = hmac.new(str(self.settings['MERCHANT_KEY']), hash_message)
         data = {'submit_url': self.submit_url,
+                'return_url': request.build_absolute_uri(request.path),
+                'cart_id': self.cart.cart_uuid,
                 'x_fp_hash': fp_hash.hexdigest(),
-                'x_fp_sequence': sequence,
+                'x_fp_sequence': timestamp,
+                'x_fp_timestamp': timestamp,
                 'x_invoice_num': self.cart.cart_uuid,
                 'x_amount': self.cart.total,
                 'x_login': self.settings['MERCHANT_ID'],
-                'x_relay_url': request.build_absolute_uri(request.path)}
+                'x_relay_url': self.settings['IPN_URL'],
+                'x_relay_response': 'TRUE',
+                'x_version': '3.1'}
         return data
 
     def confirm_payment(self, request):

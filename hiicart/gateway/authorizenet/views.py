@@ -13,13 +13,7 @@ log = logging.getLogger("hiicart.gateway.authorizenet")
 
 
 def _find_cart(data):
-    # invoice may have a suffix due to retries
-    invoice = data.get('invoice') or data.get('item_number')
-    if not invoice:
-        log.warn("No invoice # in data, aborting IPN")
-        return None
-
-    return cart_by_uuid(invoice[:36])
+    return cart_by_uuid(data['cart_id'])
 
 
 @csrf_view_exempt
@@ -32,38 +26,27 @@ def ipn(request):
     if request.method != "POST":
         return HttpResponse("Requests must be POSTed")
     data = request.POST.copy()
-    log.info("IPN Notification received from Paypal: %s" % data)
+    print request.raw_post_data
+    for key in data:
+        print key, data[key]
+    log.info("IPN Notification received from Authorize.net: %s" % data)
     try:
-        log.info("IPN Notification received from Paypal (raw): %s" % request.raw_post_data)
+        log.info("IPN Notification received from Authorize.net (raw): %s" % request.raw_post_data)
     except:
         pass
-    # Verify the data with Paypal
     cart = _find_cart(data)
     if not cart:
-        raise GatewayError('paypal gateway: Unknown transaction')
-    handler = PaypalIPN(cart)
-    if not handler.confirm_ipn_data(request.raw_post_data):
-        log.error("Paypal IPN Confirmation Failed.")
-        raise GatewayError("Paypal IPN Confirmation Failed.")
-    # Paypal defaults to cp1252, because it hates you
-    # So, if we end up with the unicode char that means
-    # "unknown char" (\ufffd), try to transcode from cp1252
-    parsed_raw = parse_qs(request.raw_post_data)
-    for key, value in data.iteritems():
-        if u'\ufffd' in value:
-            try:
-                data.update({key: unicode(unquote_plus(parsed_raw[key][-1]), 'cp1252')})
-            except:
-                pass
-    txn_type = data.get("txn_type", "")
-    status = data.get("payment_status", "unknown")
-    if txn_type == "subscr_cancel" or txn_type == "subscr_eot":
-        handler.cancel_subscription(data)
-    elif txn_type == "subscr_signup":
-        handler.activate_subscription(data)
-    elif status == "Completed":
+        raise GatewayError('Authorize.net gateway: Unknown transaction')
+    handler = AuthorizeNetIPN(cart)
+    if not handler.confirm_ipn_data(data):
+        log.error("Authorize.net IPN Confirmation Failed.")
+        raise GatewayError("Authorize.net IPN Confirmation Failed.")
+    if data['x_response_code'] == 1:  # Approved
         handler.accept_payment(data)
-    else:
-        log.info("Unknown IPN type or status. Type: %s\tStatus: %s" %
-                 (status, txn_type))
-    return HttpResponse()
+    elif data['x_response_code'] == 2:  # Declined
+        pass
+    elif data['x_response_code'] == 3:  # Error
+        pass
+    elif data['x_response_code'] == 4:  # Held
+        pass
+    return HttpResponse("<html><head><script language=\"javascript\">window.location=\"%s\";</script></head><body><noscript><meta http-equiv=\"refresh\" content=\"1;url=%s\"></noscript></body></html>" % (data['return_url'], data['return_url']))

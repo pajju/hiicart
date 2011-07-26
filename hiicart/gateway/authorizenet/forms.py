@@ -28,13 +28,17 @@ class PaymentForm(forms.Form):
     """
     Authorize.net payment form.
     """
+    return_url = forms.CharField()
+    cart_id = forms.CharField()
     x_invoice_num = forms.CharField()
     x_amount = forms.CharField()
     x_fp_sequence = forms.CharField()
+    x_fp_timestamp = forms.CharField()
     x_fp_hash = forms.CharField()
     x_relay_response = forms.CharField()
     x_relay_url = forms.CharField()
     x_login = forms.CharField()
+    x_version = forms.CharField()
     x_card_num = forms.CharField()
     x_card_code = forms.CharField(min_length=3, max_length=4)
     x_exp_date = forms.CharField()
@@ -64,7 +68,7 @@ class PaymentForm(forms.Form):
     def set_transaction(self, data):
         self._submit_url = data['submit_url']
         for key in data:
-            if key[:2] == 'x_':
+            if key[:2] == 'x_' or key == "return_url" or key == "cart_id":
                 if self.is_bound:
                     self.data[key] = data[key]
                 else:
@@ -97,13 +101,17 @@ class PaymentForm(forms.Form):
         """
         Get hidden fields required for this form.
         """
-        return [self['x_invoice_num'],
+        return [self['return_url'],
+                self['cart_id'],
+                self['x_invoice_num'],
                 self['x_amount'],
                 self['x_fp_hash'],
                 self['x_fp_sequence'],
                 self['x_relay_response'],
                 self['x_relay_url'],
-                self['x_login']]
+                self['x_login'],
+                self['x_version'],
+                self['x_fp_timestamp']]
 
     @property
     def action(self):
