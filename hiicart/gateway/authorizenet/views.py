@@ -27,8 +27,6 @@ def ipn(request):
     if request.method != "POST":
         return HttpResponse("Requests must be POSTed")
     data = request.POST.copy()
-    # for key in data:
-    #     print key, data[key]
     log.info("IPN Notification received from Authorize.net: %s" % data)
     try:
         log.info("IPN Notification received from Authorize.net (raw): %s" % request.raw_post_data)
@@ -38,9 +36,9 @@ def ipn(request):
     if not cart:
         raise GatewayError('Authorize.net gateway: Unknown transaction')
     handler = AuthorizeNetIPN(cart)
-    # if not handler.confirm_ipn_data(data):
-    #     log.error("Authorize.net IPN Confirmation Failed.")
-    #     raise GatewayError("Authorize.net IPN Confirmation Failed.")
+    if not handler.confirm_ipn_data(data):
+        log.error("Authorize.net IPN Confirmation Failed.")
+        raise GatewayError("Authorize.net IPN Confirmation Failed.")
     if data['x_response_code'] == '1':  # Approved
         handler.accept_payment(data)
     elif data['x_response_code'] == '2':  # Declined

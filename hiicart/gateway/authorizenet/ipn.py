@@ -28,10 +28,10 @@ class AuthorizeNetIPN(IPNBase):
         """
         message = "%s%s%s%s" % (self.settings['MERCHANT_PRIVATE_KEY'],
                                 self.settings['MERCHANT_ID'],
-                                self.settings['MERCHANT_KEY'],
-                                self.cart.total)
+                                data['x_trans_id'],
+                                data['x_amount'])
         m = hashlib.md5(message)
-        return data['x_MD5_Hash'] == m.hexdigest()
+        return data['x_MD5_Hash'] == m.hexdigest().upper()
 
     def _record_payment(self, data):
         """Create a new payment record."""
