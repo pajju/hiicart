@@ -2,10 +2,9 @@ import hmac
 import random
 import time
 
-from django.template import Context, loader
 from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult, PaymentResult
 from hiicart.gateway.authorizenet.forms import PaymentForm
-#from hiicart.gateway.authorizenet.ipn import AuthorizeNetIPN
+from hiicart.gateway.authorizenet.ipn import AuthorizeNetIPN
 from hiicart.gateway.authorizenet.settings import SETTINGS as default_settings
 
 POST_URL = "https://secure.authorize.net/gateway/transact.dll"
@@ -23,6 +22,9 @@ class AuthorizeNetGateway(PaymentGatewayBase):
     def _is_valid(self):
         """Return True if gateway is valid."""
         return True
+
+    def has_payment_result(self, request):
+        return 'response_code' in request.GET
 
     @property
     def submit_url(self):
@@ -52,20 +54,33 @@ class AuthorizeNetGateway(PaymentGatewayBase):
         data = {'submit_url': self.submit_url,
                 'return_url': request.build_absolute_uri(request.path),
                 'cart_id': self.cart.cart_uuid,
+                'x_invoice_num': timestamp,
                 'x_fp_hash': fp_hash.hexdigest(),
                 'x_fp_sequence': timestamp,
                 'x_fp_timestamp': timestamp,
-                'x_invoice_num': self.cart.cart_uuid,
                 'x_amount': self.cart.total,
                 'x_login': self.settings['MERCHANT_ID'],
                 'x_relay_url': self.settings['IPN_URL'],
                 'x_relay_response': 'TRUE',
+                'x_method': 'CC',
+                'x_type': 'AUTH_CAPTURE',
                 'x_version': '3.1'}
+        if not self.settings['LIVE']:
+            data['x_test_request'] = 'TRUE'
         return data
 
     def confirm_payment(self, request):
         """
         Confirms payment result with AuthorizeNet.
         """
-        for key in request.POST:
-            print key, request.POST[key]
+        try:
+            response_code = request.GET['response_code']
+            response_text = request.GET['response_text']
+        except:
+            return PaymentResult(transaction_id=None, success=False,
+                                 status=None, errors="Failed to process transaction")
+        if response_code == "1":
+            return PaymentResult(transaction_id=0, success=True,
+                                 status="APPROVED")
+        return PaymentResult(transaction_id=0, success=False, 
+                             status="DECLINED", errors=response_text)

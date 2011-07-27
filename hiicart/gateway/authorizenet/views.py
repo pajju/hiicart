@@ -39,15 +39,14 @@ def ipn(request):
     if not handler.confirm_ipn_data(data):
         log.error("Authorize.net IPN Confirmation Failed.")
         raise GatewayError("Authorize.net IPN Confirmation Failed.")
+    return_url = data['return_url']
     if data['x_response_code'] == '1':  # Approved
         handler.accept_payment(data)
-    elif data['x_response_code'] == '2':  # Declined
-        pass
-    elif data['x_response_code'] == '3':  # Error
-        pass
-    elif data['x_response_code'] == '4':  # Held
-        pass
+    else:
+        return_url = '%s?response_code=%s&response_text=%s' % (
+                     return_url, data['x_response_reason_code'], 
+                     data['x_response_reason_text'])
     response = render_to_response('gateway/authorizenet/ipn.html', 
-                                  {'return_url': data['return_url']})
-    response['Location'] = data['return_url']
+                                  {'return_url': return_url})
+    response['Location'] = return_url
     return response

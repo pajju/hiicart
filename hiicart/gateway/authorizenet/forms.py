@@ -38,6 +38,9 @@ class PaymentForm(forms.Form):
     x_relay_response = forms.CharField()
     x_relay_url = forms.CharField()
     x_login = forms.CharField()
+    x_method = forms.CharField()
+    x_type = forms.CharField()
+    x_test_request = forms.CharField()
     x_version = forms.CharField()
     x_card_num = forms.CharField()
     x_card_code = forms.CharField(min_length=3, max_length=4)
@@ -82,20 +85,7 @@ class PaymentForm(forms.Form):
         self._errors = ErrorDict()
         self.is_bound = True
         if not result.success:
-            for name, error in result.errors.items():
-                if name == 'cardholder_name':
-                    name = 'transaction__credit_card__cardholder_name'
-                elif name == 'number':
-                    name = 'transaction__credit_card__number'
-                elif name == 'cvv':
-                    name = 'transaction__credit_card__cvv'
-                elif name == 'expiration_month':
-                    name = 'transaction__credit_card__expiration_month'
-                elif name == 'expiration_year':
-                    name = 'transaction__credit_card__expiration_year'
-                elif name == 'non_field_errors':
-                    name = forms.forms.NON_FIELD_ERRORS
-                self._errors[name] = self.error_class([error])
+            self._errors[forms.forms.NON_FIELD_ERRORS] = self.error_class([result.errors])
 
     def hidden_fields(self):
         """
@@ -111,7 +101,10 @@ class PaymentForm(forms.Form):
                 self['x_relay_url'],
                 self['x_login'],
                 self['x_version'],
-                self['x_fp_timestamp']]
+                self['x_fp_timestamp'],
+                self['x_method'],
+                self['x_type'],
+                self['x_test_request']]
 
     @property
     def action(self):
