@@ -33,9 +33,27 @@ class AuthorizeNetIPN(IPNBase):
         m = hashlib.md5(message)
         return data['x_MD5_Hash'] == m.hexdigest()
 
-    def _record_payment(self, transaction):
+    def _record_payment(self, data):
         """Create a new payment record."""
-        # TODO: Record payment
+        if not self.cart:
+            return
+        if data['x_response_code'] == '1':
+            state = "PAID"
+        elif data['x_response_code'] == '4':
+            state = "PENDING"
+        else:
+            return
+        payment = self.cart.payments.filter(transaction_id=data['x_trans_id'])
+        if payment:
+            if payment[0].state != state:
+                payment[0].state = state
+                payment[0].save()
+                return payment[0]
+        else:
+            payment = self._create_payment(data['x_amount'],
+                                           data['x_trans_id'], state)
+            payment.save()
+            return payment
 
     def accept_payment(self, data):
         """Save a new order using details from a transaction."""
