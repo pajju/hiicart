@@ -5,6 +5,8 @@
  * *API_PASSWORD*
  * *API_SIGNATURE*
  * *API_VERSION*
+ * *RETURN_URL*
+ * *CANCEL_URL*
 
 **Optional settings:**
  * *CURRENCY_CODE* -- Currency for transactions [default: USD]
@@ -17,4 +19,5 @@ SETTINGS = {
     "CURRENCY_CODE" : "USD",
     "LOCALE" : "US",
     "IPN_URL" : "",
+    "API_VERSION" : "76.0",
     }

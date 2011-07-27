@@ -322,7 +322,7 @@ class HiiCartBase(models.Model):
         from hiicart.gateway.paypal.gateway import PaypalGateway
         from hiicart.gateway.paypal2.gateway import Paypal2Gateway
         from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
-        from hiicart.gateway.paypal_express_checkout.gateway import PaypalExpressCheckoutGateway
+        from hiicart.gateway.paypal_express.gateway import PaypalExpressCheckoutGateway
 
         """Factory to get payment gateways."""
         gateways = {
@@ -332,7 +332,7 @@ class HiiCartBase(models.Model):
             'paypal': PaypalGateway,
             'paypal2': Paypal2Gateway,
             'paypal_adaptive': PaypalAPGateway,
-            'paypal_express_checkout': PaypalExpressCheckoutGateway,
+            'paypal_express': PaypalExpressCheckoutGateway,
             }
         try:
             cls = gateways[name]

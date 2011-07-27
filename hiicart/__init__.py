@@ -10,14 +10,14 @@ def validate_gateway(gateway):
     from hiicart.gateway.paypal.gateway import PaypalGateway
     from hiicart.gateway.paypal2.gateway import Paypal2Gateway
     from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
-    from hiicart.gateway.paypal_express_checkout.gateway import PaypalExpressCheckoutGateway
+    from hiicart.gateway.paypal_express.gateway import PaypalExpressCheckoutGateway
     gateways = {
         'amazon': AmazonGateway,
         'google': GoogleGateway,
         'paypal': PaypalGateway,
         'paypal2': Paypal2Gateway,
         'paypal_adaptive': PaypalAPGateway,
-        'paypal_express_checkout': PaypalExpressCheckoutGateway,
+        'paypal_express': PaypalExpressCheckoutGateway,
         }
     try:
         cls = gateways[gateway]
