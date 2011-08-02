@@ -203,13 +203,15 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         shiptoname = details.get(pre+'SHIPTONAME', '')
         if shiptoname:
             name_parts = shiptoname.split(' ')
-            firstname = ' '.join(name_parts[:-2])
+            firstname = ' '.join(name_parts[:-1])
             lastname = name_parts[-1]
         else:
-            firstnmae = details.get('FIRSTNAME', '')
+            firstname = details.get('FIRSTNAME', '')
             lastname = details.get('LASTNAME', '')
         self.cart.ship_first_name = self.cart.ship_first_name or firstname
-        self.cart.ship_Last_name = self.cart.ship_last_name or lastname
+        self.cart.ship_last_name = self.cart.ship_last_name or lastname
+
+        self.cart.save()
         
 
     def submit(self, collect_address=False, cart_settings_kwargs=None):
