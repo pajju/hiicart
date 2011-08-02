@@ -184,6 +184,34 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
         return params
 
+    def _update_cart_details(self, details):
+        pre = 'PAYMENTREQUEST_0_'
+
+        # Fill in shipping information
+        property_names = {
+                'EMAIL': 'ship_email',
+                pre+'SHIPTOSTREET': 'ship_street1',
+                pre+'SHIPTOSTREET2': 'ship_street2',
+                pre+'SHIPTOCITY': 'ship_city',
+                pre+'SHIPTOSTATE': 'ship_state',
+                pre+'SHIPTOZIP': 'ship_postal_code',
+                pre+'SHIPTOCOUNTRYCODE': 'ship_country'
+                }
+        for pp_field, cart_field in property_names.iteritems():
+            setattr(self.cart, cart_field, getattr(self.cart, cart_field) or details.get(pp_field, ''))
+
+        shiptoname = details.get(pre+'SHIPTONAME', '')
+        if shiptoname:
+            name_parts = shiptoname.split(' ')
+            firstname = ' '.join(name_parts[:-2])
+            lastname = name_parts[-1]
+        else:
+            firstnmae = details.get('FIRSTNAME', '')
+            lastname = details.get('LASTNAME', '')
+        self.cart.ship_first_name = self.cart.ship_first_name or firstname
+        self.cart.ship_Last_name = self.cart.ship_last_name or lastname
+        
+
     def submit(self, collect_address=False, cart_settings_kwargs=None):
         """Submit order details to the gateway.
 
@@ -204,6 +232,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         response = self._do_nvp('GetExpressCheckoutDetails', params)
 
         payerid = response['PAYERID']
+        self._update_cart_details(response)
         # TODO: user-defined callback on get_details to update cart?
         
         if self.settings.get("CONFIRM_URL"):
