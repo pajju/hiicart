@@ -6,6 +6,7 @@ from decimal import Decimal
 from datetime import datetime
 from django.utils.safestring import mark_safe
 from django.utils.datastructures import SortedDict
+from dateutil.relativedelta import relativedelta
 
 from hiicart.gateway.base import PaymentGatewayBase, SubmitResult, GatewayError
 from hiicart.gateway.paypal_express.settings import SETTINGS as default_settings
@@ -27,6 +28,12 @@ ALLOW_NOTE = {
 RECURRING_PAYMENT = {
     "YES" : "1",
     "NO" : "0"
+    }
+BILLING_PERIOD = {
+    "DAY" : "Day",
+    "WEEK" : "Week",
+    "MONTH" : "Month",
+    "YEAR" : "Year"
     }
 
 class PaypalExpressCheckoutGateway(PaymentGatewayBase):
@@ -53,12 +60,15 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         params_dict['signature'] = self.settings['API_SIGNATURE']
         params_dict['version'] = self.settings['API_VERSION']
         encoded_params = urllib.urlencode(params_dict)
+        print params_dict
+        print encoded_params
 
         response, content = http.request(self._nvp_url, 'POST', encoded_params)
         response_dict = parse_qs(content)
         for k, v in response_dict.iteritems():
             if type(v) == list:
                 response_dict[k] = v[0]
+        print response_dict
         if response_dict['ACK'] != 'Success':
             raise GatewayError("Error calling Paypal %s" % method)
         return response_dict
@@ -81,6 +91,10 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         params[keyprefix+'shiptocountrycode'] = self.cart.bill_country
         params[keyprefix+'shiptozip'] = self.cart.bill_zip
         return params
+
+    def _is_immediate_payment(self, item):
+        return item.recurring_start is None or item.recurring_start.date() == datetime.today()
+
     
     def _get_checkout_data(self):
         """Populate request params from shopping cart"""
@@ -107,7 +121,15 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         
         params[pre+'invnum'] = self.cart.cart_uuid
         params[pre+'currencycode'] = self.settings['CURRENCY_CODE']
+
+        do_immediate_payment = False
         if len(self.cart.recurring_lineitems) == 0:
+            do_immediate_payment = True
+        else:
+            item = self.cart.recurring_lineitems[0]
+            do_initial_payment = self._is_immediate_payment(item)
+
+        if do_initial_payment:
             # Total cost of transaction to customer, including shipping, handling, and tax if known
             params[pre+'amt'] = self.cart.total.quantize(Decimal('.01'))
             # Sub-total of all items in order
@@ -117,13 +139,15 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             # Tax amount
             params[pre+'taxamt'] = self.cart.tax.quantize(Decimal('.01')) if self.cart.tax else Decimal('0.00')
         else:
-            # Use MAXAMT and INITAMT instead to cover initial and recurring charges
+            # No initial payment for this recurring payment
             params[pre+'amt'] = '0.00'
             params['maxamt'] = self.cart.total.quantize(Decimal('0.01'))
+
         # Not using parallel payments, so this is always Sale
         params[pre+'paymentaction'] = 'Sale'
         params[pre+'notifyurl'] = self.settings['IPN_URL']
 
+        # Populate line items
         pre = 'l_paymentrequest_0_'
 
         if len(self.cart.recurring_lineitems) > 1:
@@ -132,7 +156,17 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             item = self.cart.recurring_lineitems[0]
             params['l_billingtype0'] = 'RecurringPayments'
             params['l_billingagreementdescription0' ] = item.description
-            # Initial charge, recurring charge, duratiom, frequency, trial are all set with CreateRecurringPaymentsProfile
+            params[pre+'name0'] = item.name
+            params[pre+'number0'] = item.sku
+            
+            if self._is_immediate_payment(item):
+                # No delay to start of recurring billing, so we need to set up an initial payment.
+                # We'll push the start of the recurring billing back by one cycle when we create the
+                # recurring payment profile.
+                params[pre+'amt0'] = item.recurring_price
+            else:
+                params[pre+'amt0'] = '0.00'
+            # Recurring charge, duration, frequency, trial are all set with CreateRecurringPaymentsProfile
         else:
             idx = 0
             for item in self.cart.one_time_lineitems:
@@ -166,9 +200,19 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         params['desc'] = item.description
         params['shippingamt'] = item.recurring_shipping
         params['profilereference'] = self.cart.cart_uuid
-        params['profilestartdate'] = item.recurring_start.isoformat() if item.recurring_start else datetime.utcnow().isoformat()
+        if self._is_immediate_payment(item):
+            # We already created an initial payment, so move the recurring start out by one billing cycle
+            if item.duration_unit == 'MONTH':
+                delta = relativedelta(months=item.duration)
+            elif item.duration_unit == 'DAY':
+                delta = relativedelta(days=item.duration)
+            startdate = datetime.today() + delta
+        else:
+            startdate = item.recurring_start
 
-        params['billingperiod'] = item.duration_unit
+        params['profilestartdate'] = startdate.isoformat()
+
+        params['billingperiod'] = BILLING_PERIOD[item.duration_unit]
         params['billingfrequency'] = item.duration
         
         if item.trial:
@@ -212,7 +256,6 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         self.cart.ship_last_name = self.cart.ship_last_name or lastname
 
         self.cart.save()
-        
 
     def submit(self, collect_address=False, cart_settings_kwargs=None):
         """Submit order details to the gateway.
@@ -256,12 +299,20 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         params['payerid'] = payerid
 
         if len(self.cart.recurring_lineitems) > 0:
+            item = self.cart.recurring_lineitems[0]
+
+            if self._is_immediate_payment(item):
+                params.update(self._get_checkout_data())
+                self._do_nvp('DoExpressCheckoutPayment', params)
+
             # Subscription is activated with CreateRecurringPaymentsProfile
+            params = {}
+            params['token'] = token
+            params['payerid'] = payerid
             params.update(self._get_recurring_data())
             response = self._do_nvp('CreateRecurringPaymentsProfile', params)
             profileid = response['PROFILEID']
-            status = response['STATUS']
-            item = self.cart.recurring_lineitems[0]
+            status = response['PROFILESTATUS']
             item.payment_token = profileid
             if status == 'ActiveProfile':
                 item.is_active = True

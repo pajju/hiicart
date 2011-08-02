@@ -7,8 +7,9 @@ from hiicart.gateway.paypal.views import _base_paypal_ipn_listener
 from hiicart.utils import format_exceptions, cart_by_uuid
 from hiicart.gateway.base import GatewayError
 
-def _find_cart(request_data):
-    uuid = request_data["cart"]
+def _find_cart(request):
+    request_data = request.GET
+    uuid = request_data.get('cart') or request.session.get('hiicart_cart_uuid')
     cart = cart_by_uuid(uuid)
     if not cart:
         raise GatewayError("Paypal Express Checkout: Unknown transaction with cart uuid %s" % uuid)
@@ -16,11 +17,10 @@ def _find_cart(request_data):
 
 @never_cache
 def get_details(request):
-    token = request.session.get('hiicart_paypal_express_token')
-    # If token wasn't saved in the session, Paypal may have passed it as a query param
+    token = request.GET.get('token', None)
     if not token:
-        token = request.GET['token']
-    cart = _find_cart(request.GET)
+        token = request.session.get('hiicart_paypal_express_token')
+    cart = _find_cart(request)
     gateway = PaypalExpressCheckoutGateway(cart)
 
     result = gateway.get_details(token)
@@ -31,9 +31,11 @@ def get_details(request):
 
 @never_cache
 def finalize(request):
-    token = request.session.get('hiicart_paypal_express_token')
+    token = request.GET.get('token', None)
+    if not token:
+        token = request.session.get('hiicart_paypal_express_token')
     payerid = request.session.get('hiicart_paypal_express_payerid')
-    cart = _find_cart(request.GET)
+    cart = _find_cart(request)
     gateway = PaypalExpressCheckoutGateway(cart)
 
     result = gateway.finalize(token, payerid)
