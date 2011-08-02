@@ -24,6 +24,7 @@ class HiiCartTestCase(unittest.TestCase):
     def _add_recurring_item(self):
         """Add a RecurringLineItem to self.cart."""
         return RecurringLineItem.objects.create(cart=self.cart, name="Recurring",
+                                                description="Recurring Line Item",
                                                 quantity=1, sku="42",
                                                 duration=12, duration_unit="MONTH",
                                                 recurring_price=Decimal("20.00"))
