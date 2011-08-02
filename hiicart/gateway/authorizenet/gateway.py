@@ -2,6 +2,8 @@ import hmac
 import random
 import time
 
+from django.contrib.sessions.backends.db import SessionStore
+from hiicart.models import PaymentResponse
 from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult, PaymentResult
 from hiicart.gateway.authorizenet.forms import PaymentForm
 from hiicart.gateway.authorizenet.ipn import AuthorizeNetIPN
@@ -24,7 +26,10 @@ class AuthorizeNetGateway(PaymentGatewayBase):
         return True
 
     def has_payment_result(self, request):
-        return 'response_code' in request.GET
+        response = self.get_response()
+        if response:
+            return True
+        return False
 
     @property
     def submit_url(self):
@@ -69,18 +74,35 @@ class AuthorizeNetGateway(PaymentGatewayBase):
             data['x_test_request'] = 'TRUE'
         return data
 
+    def get_response(self):
+        """Get a payment result if it exists."""
+        result = PaymentResponse.objects.filter(cart=self.cart)
+        if result:
+            return result[0]
+        return None
+
+    def set_response(self, data):
+        """Store payment result for confirm_payment."""
+        response = PaymentResponse()
+        response.cart = self.cart
+        response.response_code = data['x_response_reason_code']
+        response.response_text = data['x_response_reason_text']
+        response.save()
+
     def confirm_payment(self, request):
         """
         Confirms payment result with AuthorizeNet.
         """
-        try:
-            response_code = request.GET['response_code']
-            response_text = request.GET['response_text']
-        except:
-            return PaymentResult(transaction_id=None, success=False,
-                                 status=None, errors="Failed to process transaction")
-        if response_code == "1":
-            return PaymentResult(transaction_id=0, success=True,
-                                 status="APPROVED")
-        return PaymentResult(transaction_id=0, success=False, 
-                             status="DECLINED", errors=response_text)
+        response = self.get_response()
+        if response:
+            if response.response_code == 1:
+                result = PaymentResult(transaction_id=0, success=True,
+                                       status="APPROVED")
+            else:
+                result = PaymentResult(transaction_id=0, success=False, 
+                                       status="DECLINED", errors=response.response_text)
+            response.delete()
+        else:
+            result = PaymentResult(transaction_id=None, success=False,
+                                   status=None, errors="Failed to process transaction")
+        return result

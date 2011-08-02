@@ -641,3 +641,10 @@ class Note(models.Model):
 
     def __unicode__(self):
         return self.text
+
+
+class PaymentResponse(models.Model):
+    """Store the result of a payment attempt."""
+    cart = models.ForeignKey(HiiCart, related_name="payment_results")
+    response_code = models.PositiveIntegerField()
+    response_text = models.TextField()

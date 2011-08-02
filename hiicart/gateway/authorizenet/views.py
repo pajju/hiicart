@@ -1,10 +1,12 @@
 import logging
+
 from django.http import HttpResponseRedirect
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_view_exempt
 from django.shortcuts import render_to_response
 from hiicart.gateway.base import GatewayError
 from hiicart.gateway.authorizenet.ipn import AuthorizeNetIPN
+from hiicart.gateway.authorizenet.gateway import AuthorizeNetGateway
 from hiicart.utils import format_exceptions, cart_by_uuid
 from urllib import unquote_plus
 from urlparse import parse_qs
@@ -39,14 +41,16 @@ def ipn(request):
     if not handler.confirm_ipn_data(data):
         log.error("Authorize.net IPN Confirmation Failed.")
         raise GatewayError("Authorize.net IPN Confirmation Failed.")
-    return_url = data['return_url']
+
     if data['x_response_code'] == '1':  # Approved
         handler.accept_payment(data)
-    else:
-        return_url = '%s?response_code=%s&response_text=%s' % (
-                     return_url, data['x_response_reason_code'], 
-                     data['x_response_reason_text'])
+
+    # Store payment result
+    gateway = AuthorizeNetGateway(cart)
+    gateway.set_response(data)
+
+    # Return the user back to the store front
     response = render_to_response('gateway/authorizenet/ipn.html', 
-                                  {'return_url': return_url})
-    response['Location'] = return_url
+                                  {'return_url': data['return_url']})
+    response['Location'] = data['return_url']
     return response
