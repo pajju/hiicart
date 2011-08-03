@@ -60,15 +60,12 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         params_dict['signature'] = self.settings['API_SIGNATURE']
         params_dict['version'] = self.settings['API_VERSION']
         encoded_params = urllib.urlencode(params_dict)
-        print params_dict
-        print encoded_params
 
         response, content = http.request(self._nvp_url, 'POST', encoded_params)
         response_dict = parse_qs(content)
         for k, v in response_dict.iteritems():
             if type(v) == list:
                 response_dict[k] = v[0]
-        print response_dict
         if response_dict['ACK'] != 'Success':
             raise GatewayError("Error calling Paypal %s" % method)
         return response_dict
@@ -127,9 +124,9 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             do_immediate_payment = True
         else:
             item = self.cart.recurring_lineitems[0]
-            do_initial_payment = self._is_immediate_payment(item)
+            do_immediate_payment = self._is_immediate_payment(item)
 
-        if do_initial_payment:
+        if do_immediate_payment:
             # Total cost of transaction to customer, including shipping, handling, and tax if known
             params[pre+'amt'] = self.cart.total.quantize(Decimal('.01'))
             # Sub-total of all items in order
@@ -150,32 +147,35 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         # Populate line items
         pre = 'l_paymentrequest_0_'
 
+        # Add recurring line item
+        idx = 0
         if len(self.cart.recurring_lineitems) > 1:
             self.log.error("Cannot have more than one subscription in one order for Paypal. Only processing the first one for %s", self.cart)
         if len(self.cart.recurring_lineitems) > 0:
             item = self.cart.recurring_lineitems[0]
-            params['l_billingtype0'] = 'RecurringPayments'
-            params['l_billingagreementdescription0' ] = item.description
-            params[pre+'name0'] = item.name
-            params[pre+'number0'] = item.sku
+            params['l_billingtype%i' % idx] = 'RecurringPayments'
+            params['l_billingagreementdescription%i' % idx] = item.description
+            params[pre+'name%i' % idx] = item.name
+            params[pre+'number%i' % idx] = item.sku
             
             if self._is_immediate_payment(item):
                 # No delay to start of recurring billing, so we need to set up an initial payment.
                 # We'll push the start of the recurring billing back by one cycle when we create the
                 # recurring payment profile.
-                params[pre+'amt0'] = item.recurring_price
+                params[pre+'amt%i' % idx] = item.recurring_price
             else:
-                params[pre+'amt0'] = '0.00'
+                params[pre+'amt%i' % idx] = '0.00'
             # Recurring charge, duration, frequency, trial are all set with CreateRecurringPaymentsProfile
-        else:
-            idx = 0
-            for item in self.cart.one_time_lineitems:
-                params[pre+'name%i' % idx] = item.name
-                params[pre+'desc%i' % idx] = item.description
-                params[pre+'amt%i' % idx] = item.total.quantize(Decimal('.01'))
-                params[pre+'qty%i' % idx] = item.quantity
-                params[pre+'number%i' % idx] = item.sku
-                idx += 1
+            idx += 1
+
+        # Add one-time line items
+        for item in self.cart.one_time_lineitems:
+            params[pre+'name%i' % idx] = item.name
+            params[pre+'desc%i' % idx] = item.description
+            params[pre+'amt%i' % idx] = item.total.quantize(Decimal('.01'))
+            params[pre+'qty%i' % idx] = item.quantity
+            params[pre+'number%i' % idx] = item.sku
+            idx += 1
 
         if self.cart.bill_street1:
             params['addroverride'] = '0'
@@ -327,3 +327,19 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         url = self.settings["COMPLETE_URL"]
         return SubmitResult('url', url)
 
+    def _is_valid(self):
+        """Return True if gateway is valid."""
+        # Can't validate credentials with Paypal AFAIK
+        return True
+
+    def cancel_recurring(self):
+        """Cancel recurring items with gateway. Returns a CancelResult."""
+        pass
+
+    def charge_recurring(self, grace_period=None):
+        """This Paypal API doesn't support manually charging subscriptions."""
+        pass
+
+    def sanitize_clone(self):
+        """Nothing to fix here."""
+        pass

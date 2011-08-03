@@ -1,4 +1,5 @@
 import base
+from hiicart.gateway.paypal_express.gateway import PaypalExpressCheckoutGateway
 
 STORE_SETTINGS = {
         'API_USERNAME': 'sdk-three_api1.sdk.com',
@@ -33,3 +34,28 @@ class PaypalExpressCheckoutTestCase(base.HiiCartTestCase):
 
         token = result.session_args['hiicart_paypal_express_token']
         self.assertNotEqual(token, None)
+
+    def test_update_cart_details(self):
+        pp_params = {
+            'PAYMENTREQUEST_0_SHIPTONAME': 'Dmitri Shostakovich',
+            'PAYMENTREQUEST_0_SHIPTOSTREET': '321 Blast Off Lane',
+            'PAYMENTREQUEST_0_SHIPTOSTREET2': 'Apt 456',
+            'PAYMENTREQUEST_0_SHIPTOCITY': 'New Moscow',
+            'PAYMENTREQUEST_0_SHIPTOSTATE': 'AK',
+            'PAYMENTREQUEST_0_SHIPTOZIP': '90210',
+            'PAYMENTREQUEST_0_SHIPTOCOUNTRYCODE': 'US'
+            }
+
+        self.cart.hiicart_settings.update(STORE_SETTINGS)
+        gateway = PaypalExpressCheckoutGateway(self.cart)
+        
+        gateway._update_cart_details(pp_params)
+
+        self.assertEqual(self.cart.ship_first_name, 'Dmitri')
+        self.assertEqual(self.cart.ship_last_name, 'Shostakovich')
+        self.assertEqual(self.cart.ship_street1, '321 Blast Off Lane')
+        self.assertEqual(self.cart.ship_street2, 'Apt 456')
+        self.assertEqual(self.cart.ship_city, 'New Moscow')
+        self.assertEqual(self.cart.ship_state, 'AK')
+        self.assertEqual(self.cart.ship_postal_code, '90210')
+        self.assertEqual(self.cart.ship_country, 'US')
