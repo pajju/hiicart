@@ -78,3 +78,4 @@ class AuthorizeNetIPN(IPNBase):
         self.cart._cart_state = "SUBMITTED"
         self.cart.save()
         self._record_payment(data)
+        self.cart.update_state()
