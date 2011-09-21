@@ -75,6 +75,7 @@ class AuthorizeNetIPN(IPNBase):
         self.cart.bill_state = data["x_state"] or self.cart.bill_state
         self.cart.bill_postal_code = data["x_zip"] or self.cart.bill_postal_code
         self.cart.bill_country = data["x_country"] or self.cart.bill_country
-        self.cart._cart_state = "SUBMITTED"
         self.cart.save()
         self._record_payment(data)
+        self.cart.update_state()
+        self.cart.save()
