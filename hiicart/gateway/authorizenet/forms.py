@@ -42,9 +42,9 @@ class PaymentForm(forms.Form):
     x_type = forms.CharField()
     x_test_request = forms.CharField()
     x_version = forms.CharField()
-    x_card_num = forms.CharField()
+    x_card_num = forms.CharField(max_length=16)
     x_card_code = forms.CharField(min_length=3, max_length=4)
-    x_exp_date = forms.CharField()
+    x_exp_date = forms.CharField(max_length=7) # MM/YY, MMYY, MM-YY, MM-YYYY
     x_first_name = forms.CharField(max_length=255)
     x_last_name = forms.CharField(max_length=255)
     x_address = forms.CharField(max_length=80)
