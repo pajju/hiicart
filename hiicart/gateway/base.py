@@ -46,7 +46,7 @@ class _SharedBase(object):
             if s:
                 self.settings.update(s)
                 return
-        self.settings = self._settings_base.copy() # reset to defaults
+        self.settings = self._settings_base.copy()  # reset to defaults
 
     def _update_with_cart_settings(self, cart_settings_kwargs):
         """Pull cart-specific settings and update self.settings with them.
@@ -54,11 +54,12 @@ class _SharedBase(object):
         we're able to have different carts use different google accounts."""
         if self.cart.hiicart_settings.get("CART_SETTINGS_FN"):
             cart_settings_kwargs = cart_settings_kwargs or {}
-            s = call_func(self.cart.hiicart_settings["CART_SETTINGS_FN"], self.cart, **cart_settings_kwargs)
+            s = call_func(self.cart.hiicart_settings["CART_SETTINGS_FN"],
+                          self.cart, **cart_settings_kwargs)
             if s:
                 self.settings.update(s)
                 return
-        self.settings = self._settings_base.copy() # reset to defaults
+        self.settings = self._settings_base.copy()  # reset to defaults
 
     def _require_files(self, filenames):
         """Verify a file exists on disk. Usually use for key files."""
@@ -87,7 +88,7 @@ class IPNBase(_SharedBase):
 
     Provides shared functionality among IPN implementations
     """
-    pass # All covered by _SharedBase for now
+    pass  # All covered by _SharedBase for now
 
 
 class PaymentGatewayBase(_SharedBase):
@@ -147,10 +148,12 @@ class CancelResult(object):
 class SubmitResult(object):
     """
     The result of a submit operation.
-    Currently supported result types are url, form, and None.
+    Currently supported result types are url, form, direct, and None.
 
     url: The user should to be redirected to result.url.
     form: form_action is the target url; form_fields is a dict of form data.
+    direct: form_action is the form target; form_fields is a dict of hidden form
+            required by the gateway.
     None: type is set to None if no further action is required.
     """
     def __init__(self, type, url=None, form_data=None):
@@ -164,3 +167,15 @@ class SubmitResult(object):
         else:
             self.form_action = None
             self.form_fields = None
+
+
+class PaymentResult(object):
+    """
+    Result for a payment confirmation.
+    Currently only supported with direct payment gateways.
+    """
+    def __init__(self, transaction_id, success, status, errors=None):
+        self.transaction_id = transaction_id
+        self.success = success
+        self.status = status
+        self.errors = errors

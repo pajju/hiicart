@@ -322,6 +322,8 @@ class HiiCartBase(models.Model):
         from hiicart.gateway.paypal.gateway import PaypalGateway
         from hiicart.gateway.paypal2.gateway import Paypal2Gateway
         from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
+        from hiicart.gateway.braintree.gateway import BraintreeGateway
+        from hiicart.gateway.authorizenet.gateway import AuthorizeNetGateway    
 
         """Factory to get payment gateways."""
         if name == "amazon":
@@ -336,6 +338,10 @@ class HiiCartBase(models.Model):
             return Paypal2Gateway(self)
         elif name == "paypal_adaptive":
             return PaypalAPGateway(self)
+        elif name == "braintree":
+            return BraintreeGateway(self)
+        elif name == "authorizenet":
+            return AuthorizeNetGateway(self)
         else:
             raise HiiCartError("Unknown gateway: %s" % name)
 
@@ -366,8 +372,11 @@ class HiiCartBase(models.Model):
         """Submit this cart to a payment gateway."""
         gateway = self._get_gateway(gateway_name)
         self.gateway = gateway_name
-        self.set_state("SUBMITTED")
-        return gateway.submit(collect_address, cart_settings_kwargs)
+        self.save()
+        result = gateway.submit(collect_address, cart_settings_kwargs)
+        if result.type is not "direct":
+            self.set_state("SUBMITTED")
+        return result
 
     def update_state(self):
         """
@@ -632,3 +641,10 @@ class Note(models.Model):
 
     def __unicode__(self):
         return self.text
+
+
+class PaymentResponse(models.Model):
+    """Store the result of a payment attempt."""
+    cart = models.ForeignKey(HiiCart, related_name="payment_results")
+    response_code = models.PositiveIntegerField()
+    response_text = models.TextField()
