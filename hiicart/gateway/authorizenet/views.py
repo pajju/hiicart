@@ -1,6 +1,6 @@
 import logging
 
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_view_exempt
 from django.shortcuts import render_to_response
