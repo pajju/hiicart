@@ -6,6 +6,7 @@ from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult,
 from hiicart.gateway.braintree.forms import PaymentForm
 from hiicart.gateway.braintree.ipn import BraintreeIPN
 from hiicart.gateway.braintree.settings import SETTINGS as default_settings
+from hiicart.gateway.braintree.tasks import update_payment_status
 
 
 class BraintreeGateway(PaymentGatewayBase):
@@ -91,3 +92,6 @@ class BraintreeGateway(PaymentGatewayBase):
                 errors = {'non_field_errors': result.transaction.gateway_rejection_reason}
         return PaymentResult(transaction_id=transaction_id, success=False,
                              status=status, errors=errors)
+
+    def update_payment_status(self, transaction_id):
+        update_payment_status.apply_async(args=[self.cart.id, transaction_id], countdown=300)

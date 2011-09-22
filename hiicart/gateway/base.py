@@ -129,6 +129,10 @@ class PaymentGatewayBase(_SharedBase):
         """Submit a cart to the gateway. Returns a SubmitResult."""
         raise NotImplementedError
 
+    def update_payment_status(self, transation_id):
+        """Asyncronously poll the gateway for changes in payment status."""
+        pass
+
 
 class CancelResult(object):
     """
