@@ -25,4 +25,8 @@ SETTINGS = {
     "REATTEMPT" : True,
     "ENCRYPT" : False,
     "IPN_URL" : "",
+    "API_VERSION" : "76.0",
+        'API_USERNAME': 'admin_1318443115_biz_api1.goalfinch.com',
+        'API_PASSWORD': '1318443139',
+        'API_SIGNATURE': 'ARTdvrb.lh5pt.L-RL7Pbq.jBScnAtx6wJj-HvfC-8cscyJr7h-5yIsG',
     }

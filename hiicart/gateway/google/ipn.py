@@ -80,6 +80,7 @@ class GoogleIPN(IPNBase):
             r.is_active = True
             r.save()
         pmnt.cart.update_state()
+        self.send_notification("PAYMENT_RECEIVED", pmnt)
 
     def chargeback_amount(self, data):
         """
@@ -159,7 +160,8 @@ class GoogleIPN(IPNBase):
         amount = Decimal(data["latest-refund-amount"]) * -1
         pmnt = self._record_payment(data, amount=amount)
         if pmnt:
-           pmnt.cart.update_state()
+            pmnt.cart.update_state()
+            self.send_notification("REFUND_COMPLETED", pmnt)
 
     def risk_information(self, data):
         """

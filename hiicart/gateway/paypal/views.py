@@ -68,7 +68,9 @@ def ipn(request):
         handler.activate_subscription(data)
     elif status == "Completed":
         handler.accept_payment(data)
+    elif status == "Refunded":
+        handler.payment_refunded(data)
     else:
         log.info("Unknown IPN type or status. Type: %s\tStatus: %s" %
-                 (status, txn_type))
+                 (txn_type, status))
     return HttpResponse()
