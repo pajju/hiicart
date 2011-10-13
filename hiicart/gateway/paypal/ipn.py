@@ -62,7 +62,6 @@ class PaypalIPN(IPNBase):
         self.cart.update_state()
         self.cart.save()
 
-        self.send_notification("PAYMENT_RECEIVED", payment)
 
     def activate_subscription(self, data):
         """Send signal that a subscription has been activated."""
@@ -106,7 +105,6 @@ class PaypalIPN(IPNBase):
         self.cart.update_state()
         self.cart.save()
         
-        self.send_notification("REFUND_COMPLETED", payment)
 
     def confirm_ipn_data(self, raw_data):
         """Confirm IPN data using string raw post data.

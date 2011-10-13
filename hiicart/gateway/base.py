@@ -91,18 +91,6 @@ class IPNBase(_SharedBase):
     """
     def __init__(self, name, cart, default_settings=None):
         super(IPNBase, self).__init__(name, cart, default_settings)
-        self.ipn_signal = Signal(providing_args=["ipn_action", "payment"])
-
-    def send_notification(self, ipn_action, payment):
-        """
-        Send notification of IPN received.
-        Currently only send notifications for:
-        PAYMENT_RECEIVED
-        REFUND_COMPLETED
-        """
-        self.ipn_signal.send(sender=self.__class__.__name__,
-                             ipn_action=ipn_action,
-                             payment=payment)
 
 
 class PaymentGatewayBase(_SharedBase):
