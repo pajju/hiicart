@@ -30,9 +30,9 @@ class GoogleGateway(PaymentGatewayBase):
     def _order_url(self):
         """URL for the Order Processing API."""
         if self.settings["LIVE"]:
-            base = "https://checkout.google.com/api/checkout/v2/requestForm/Merchant/%s"
+            base = "https://checkout.google.com/api/checkout/v2/request/Merchant/%s"
         else:
-            base = "https://sandbox.google.com/checkout/api/checkout/v2/requestForm/Merchant/%s"
+            base = "https://sandbox.google.com/checkout/api/checkout/v2/request/Merchant/%s"
         return base % self.settings["MERCHANT_ID"]
 
     def _is_valid(self):
@@ -40,13 +40,12 @@ class GoogleGateway(PaymentGatewayBase):
         # TODO: Query Google to validate credentials
         return True
 
-    def _send_command(self, url, params):
+    def _send_xml(self, url, xml):
         """Send a command to the Checkout Order Processing API."""
         http = httplib2.Http()
         headers = {"Content-type" : "application/x-www-form-urlencoded",
                    "Authorization" : "Basic %s" % self.get_basic_auth()}
-        params = urllib.urlencode(params)
-        return http.request(url, "POST", params, headers=headers)
+        return http.request(url, "POST", xml, headers=headers)
 
     def cancel_recurring(self):
         """Cancel recurring items with gateway. Returns a CancelResult."""
@@ -83,12 +82,29 @@ class GoogleGateway(PaymentGatewayBase):
                        "edit_cart_url": self.settings.get("EDIT_URL", None),
                        "currency": self.settings["CURRENCY"]})
         cart_xml = convertToUTF8(template.render(ctx))
-        # Post to Google
-        headers = {"Content-type": "application/x-www-form-urlencoded",
-                   "Authorization": "Basic %s" % self.get_basic_auth()}
-        http = httplib2.Http()
-        response, content = http.request(self._cart_url, "POST", cart_xml,
-                                         headers=headers)
+        response, content = self._send_xml(self._cart_url, cart_xml)
         xml = ET.XML(content)
         url = xml.find("{http://checkout.google.com/schema/2}redirect-url").text
         return SubmitResult("url", url)
+
+    def refund_payment(self, payment, reason=None):
+        """
+        Refund the full amount of this payment
+        """
+        self.refund(payment.transaction_id, payment.amount, reason)
+
+    def refund(self, transaction_id, amount, reason=None):
+        """Refund a payment."""
+        cart_settings_kwargs = None
+        self._update_with_cart_settings({'request': None})
+
+        template = loader.get_template("gateway/google/refund.xml")
+        ctx = Context({"transaction_id": transaction_id,
+                       "comment": comment,
+                       "reason": reason,
+                       "currency": self.settings["CURRENCY"],
+                       "amount": Decimal(amount).quantize(Decimal('.01'))})
+        refund_xml = convertToUTF8(template.render(ctx))
+        response, content = self._send_xml(self._order_url, refund_xml)
+        return SubmitResult(None)
+

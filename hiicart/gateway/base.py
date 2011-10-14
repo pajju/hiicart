@@ -88,7 +88,7 @@ class IPNBase(_SharedBase):
 
     Provides shared functionality among IPN implementations
     """
-    pass  # All covered by _SharedBase for now
+    pass # All covered by _SharedBase for now
 
 
 class PaymentGatewayBase(_SharedBase):

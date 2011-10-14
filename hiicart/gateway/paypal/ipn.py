@@ -62,6 +62,7 @@ class PaypalIPN(IPNBase):
         self.cart.update_state()
         self.cart.save()
 
+
     def activate_subscription(self, data):
         """Send signal that a subscription has been activated."""
         if not self.cart:
@@ -92,6 +93,18 @@ class PaypalIPN(IPNBase):
             item.save()
             self.cart.update_state()
             self.cart.save()
+
+    def payment_refunded(self, data):
+        """Accept a refund notification.
+        mc_gross will be negative
+        """
+        transaction_id = data["txn_id"]
+        payment = self._create_payment(data["mc_gross"], transaction_id, "PENDING")
+        payment.state = "PAID" # Ensure proper state transitions
+        payment.save()
+        self.cart.update_state()
+        self.cart.save()
+        
 
     def confirm_ipn_data(self, raw_data):
         """Confirm IPN data using string raw post data.
