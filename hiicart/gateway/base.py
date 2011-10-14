@@ -1,6 +1,5 @@
 import logging
 import os
-from django.dispatch import Signal
 from hiicart.utils import call_func
 
 
@@ -89,8 +88,7 @@ class IPNBase(_SharedBase):
 
     Provides shared functionality among IPN implementations
     """
-    def __init__(self, name, cart, default_settings=None):
-        super(IPNBase, self).__init__(name, cart, default_settings)
+    pass # All covered by _SharedBase for now
 
 
 class PaymentGatewayBase(_SharedBase):

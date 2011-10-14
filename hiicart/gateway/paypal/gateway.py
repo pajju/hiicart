@@ -77,6 +77,8 @@ class PaypalGateway(PaymentGatewayBase):
         return mark_safe(url)
 
     def _do_nvp(self, method, params_dict):
+        if not self.settings['API_USERNAME']:
+            raise GatewayError("You must have NVP API credentials to do API operations (%s) with Paypal" % method)
         http = httplib2.Http()
         params_dict['method'] = method
         params_dict['user'] = self.settings['API_USERNAME']
