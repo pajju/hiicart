@@ -115,7 +115,7 @@ class BraintreeGateway(PaymentGatewayBase):
     
     def apply_discount(self, subscription_id, discount_id, num_billing_cycles=1, quantity=1):
         subscription = braintree.Subscription.find(subscription_id)
-        existing_discounts = filter(subscription.discounts, lambda d: d.id==discount_id)
+        existing_discounts = filter(lambda d: d.id==discount_id, subscription.discounts)
         if not existing_discounts:
             result = braintree.Subscription.update(subscription_id, {
                 'discounts': {
