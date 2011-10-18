@@ -113,7 +113,7 @@ class BraintreeGateway(PaymentGatewayBase):
         update_payment_status.apply_async(args=[self.cart.id, transaction_id], countdown=300)
 
     
-    def apply_discount(subscription_id, discount_id, num_billing_cycles=1, quantity=1):
+    def apply_discount(self, subscription_id, discount_id, num_billing_cycles=1, quantity=1):
         subscription = braintree.Subscription.find(subscription_id)
         existing_discounts = filter(subscription.discounts, lambda d: d.id==discount_id)
         if not existing_discounts:
@@ -143,6 +143,6 @@ class BraintreeGateway(PaymentGatewayBase):
             })
         if not result.is_success:
             raise GatewayException(result.message or 'There was an error applying the discount')
-        return result
+        return result.subscription
 
         
