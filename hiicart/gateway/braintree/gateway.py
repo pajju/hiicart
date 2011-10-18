@@ -2,7 +2,7 @@ import braintree
 
 from django.template import Context, loader
 
-from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult, PaymentResult
+from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult, PaymentResult, GatewayError
 from hiicart.gateway.braintree.forms import PaymentForm
 from hiicart.gateway.braintree.ipn import BraintreeIPN
 from hiicart.gateway.braintree.settings import SETTINGS as default_settings
@@ -28,7 +28,7 @@ class BraintreeGateway(PaymentGatewayBase):
 
     @property
     def is_recurring(self):
-        return self.cart.recurring_lineitems > 0
+        return len(self.cart.recurring_lineitems) > 0
 
     @property
     def environment(self):
@@ -50,16 +50,32 @@ class BraintreeGateway(PaymentGatewayBase):
         return PaymentForm()
 
     def start_transaction(self, request):
-        """Submits transaction details to Braintree and returns form data."""
-        tr_data = braintree.Transaction.tr_data_for_sale({
-            "transaction": {"type": "sale",
-                            "order_id": self.cart.cart_uuid,
-                            "amount": self.cart.total,
-                            "options": {
-                                "submit_for_settlement": True,
-                                "store_in_vault": self.is_recurring
-                            }}},
-            request.build_absolute_uri(request.path))
+        """
+        Submits transaction details to Braintree and returns form data.
+        If we're processing a one-time sale, submit the transaction for settlement
+        right away. Otherwise, if we're starting a subscription, create the credit
+        card on Braintree and create a subscription with the payment method token
+        after confirmation.
+        """
+        if self.is_recurring:
+            tr_data = braintree.Customer.tr_data_for_create({
+                'credit_card': {
+                    'options': {
+                        'verify_card': True
+                    }
+                }},
+                request.build_absolute_uri(request.path))
+        else:
+            tr_data = braintree.Transaction.tr_data_for_sale({
+                "transaction": {
+                    "type": "sale",
+                    "order_id": self.cart.cart_uuid,
+                    "amount": self.cart.total,
+                    "options": {
+                        "submit_for_settlement": True
+                    }
+                }},
+                request.build_absolute_uri(request.path))
         return tr_data
 
     def confirm_payment(self, request):
@@ -79,33 +95,39 @@ class BraintreeGateway(PaymentGatewayBase):
 
         if result.is_success:
             handler = BraintreeIPN(self.cart)
-            created = handler.new_order(result.transaction)
-            if created:
-                # If this is a subscription purchase, set up a subscription with Braintree
-                if self.is_recurring:
-                    item = self.cart.recurring_lineitems[0]
-                    gateway_plan_id = item.gateway_plan_id
-                    payment_token = result.transaction.credit_card['token']
-                    subscribe_result = braintree.Subscription.create({
-                        'payment_method_token': payment_token,
-                        'plan_id': gateway_plan_id})
-                    # TODO: Save subscription id to recurringlineitem
-                return PaymentResult(transaction_id=result.transaction.id,
-                                     success=True,
-                                     status=result.transaction.status)
+            if self.is_recurring:
+                credit_card = result.customer.credit_cards[0]
+                created = handler.create_subscription(credit_card)
+                if created:
+                    return PaymentResult(transaction_id=None,
+                                         success=True,
+                                         status=result.credit_card_verification.status)
+            else:
+                created = handler.new_order(result.transaction)
+                if created:
+                    return PaymentResult(transaction_id=result.transaction.id,
+                                         success=True,
+                                         status=result.transaction.status)
         errors = {}
-        if not result.transaction:
-            transaction_id = None
-            status = None
-            for error in result.errors.deep_errors:
-                errors[error.attribute] = error.message
-        else:
+        if result.transaction:
             transaction_id = result.transaction.id
             status = result.transaction.status
             if result.transaction.status == "processor_declined":
                 errors = {'non_field_errors': result.transaction.processor_response_text}
             elif result.transaction.status == "gateway_rejected":
                 errors = {'non_field_errors': result.transaction.gateway_rejection_reason}
+        elif result.credit_card_verification:
+            transaction_id = None
+            status = result.credit_card_verification.status
+            if result.credit_card_verification.status == "processor_declined":
+                errors = {'non_field_errors': result.credit_card_verification.processor_response_text}
+            elif result.credit_card_verification.status == "gateway_rejected":
+                errors = {'non_field_errors': result.credit_card_verification.gateway_rejection_reason}
+        else:
+            transaction_id = None
+            status = None
+            for error in result.errors.deep_errors:
+                errors[error.attribute] = error.message
         return PaymentResult(transaction_id=transaction_id, success=False,
                              status=status, errors=errors)
 
@@ -142,7 +164,7 @@ class BraintreeGateway(PaymentGatewayBase):
                 }
             })
         if not result.is_success:
-            raise GatewayException(result.message or 'There was an error applying the discount')
+            raise GatewayError(result.message or 'There was an error applying the discount')
         return result.subscription
 
         

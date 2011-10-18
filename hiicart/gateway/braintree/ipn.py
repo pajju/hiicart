@@ -114,3 +114,24 @@ class BraintreeIPN(IPNBase):
                 payment[0].state = "FAILED"
                 payment[0].save()
         return result.is_success
+
+    def create_subscription(self, payment_method, gateway_plan_id=None):
+        item = self.cart.recurring_lineitems[0]
+        
+        if not gateway_plan_id:
+            plan_id_by_sku = self.settings.get('PLAN_ID_BY_SKU', {})
+            gateway_plan_id = plan_id_by_sku.get(item.sku, None)
+        if not gateway_plan_id:
+            raise GatewayError("Don't know how to determine Braintree subscription plan ID for SKU: %s" % item.sku)
+
+        subscribe_result = braintree.Subscription.create({
+            'payment_method_token': payment_method.token,
+            'plan_id': gateway_plan_id})
+        if subscribe_result.is_success:
+            item.payment_token = subscribe_result.subscription.id
+            item.is_active = True
+            item.save()
+            self.cart.update_state()
+            self.cart.save()
+            return True
+        return False
