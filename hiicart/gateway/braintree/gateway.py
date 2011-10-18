@@ -27,6 +27,10 @@ class BraintreeGateway(PaymentGatewayBase):
         return True
 
     @property
+    def is_recurring(self):
+        return self.cart.recurring_lineitems > 0
+
+    @property
     def environment(self):
         """Determine which Braintree environment to use."""
         if self.settings["LIVE"]:
@@ -51,7 +55,10 @@ class BraintreeGateway(PaymentGatewayBase):
             "transaction": {"type": "sale",
                             "order_id": self.cart.cart_uuid,
                             "amount": self.cart.total,
-                            "options": {"submit_for_settlement": True}}},
+                            "options": {
+                                "submit_for_settlement": True,
+                                "store_in_vault": self.is_recurring
+                            }}},
             request.build_absolute_uri(request.path))
         return tr_data
 
@@ -74,6 +81,15 @@ class BraintreeGateway(PaymentGatewayBase):
             handler = BraintreeIPN(self.cart)
             created = handler.new_order(result.transaction)
             if created:
+                # If this is a subscription purchase, set up a subscription with Braintree
+                if self.is_recurring:
+                    item = self.cart.recurring_lineitems[0]
+                    gateway_plan_id = item.gateway_plan_id
+                    payment_token = result.transaction.credit_card['token']
+                    subscribe_result = braintree.Subscription.create({
+                        'payment_method_token': payment_token,
+                        'plan_id': gateway_plan_id})
+                    # TODO: Save subscription id to recurringlineitem
                 return PaymentResult(transaction_id=result.transaction.id,
                                      success=True,
                                      status=result.transaction.status)
@@ -95,3 +111,38 @@ class BraintreeGateway(PaymentGatewayBase):
 
     def update_payment_status(self, transaction_id):
         update_payment_status.apply_async(args=[self.cart.id, transaction_id], countdown=300)
+
+    
+    def apply_discount(subscription_id, discount_id, num_billing_cycles=1, quantity=1):
+        subscription = braintree.Subscription.find(subscription_id)
+        existing_discounts = filter(subscription.discounts, lambda d: d.id==discount_id)
+        if not existing_discounts:
+            result = braintree.Subscription.update(subscription_id, {
+                'discounts': {
+                    'add': [
+                        {
+                            'inherited_from_id': discount_id,
+                            'number_of_billing_cycles': num_billing_cycles,
+                            'quantity': quantity
+                        }
+                    ]
+                }
+            })
+        else:
+            existing_cycles = existing_discounts[0].number_of_billing_cycles
+            result = braintree.Subscription.update(subscription_id, {
+                'discounts': {
+                    'update': [
+                        {
+                            'existing_id': discount_id,
+                            'number_of_billing_cycles': existing_cycles + num_billing_cycles,
+                            'quantity': quantity
+                        }
+                    ]
+                }
+            })
+        if not result.is_success:
+            raise GatewayException(result.message or 'There was an error applying the discount')
+        return result
+
+        
