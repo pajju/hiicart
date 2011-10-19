@@ -26,6 +26,10 @@ class BraintreeIPN(IPNBase):
                                           self.settings["MERCHANT_PRIVATE_KEY"])
 
     @property
+    def is_recurring(self):
+        return len(self.cart.recurring_lineitems) > 0
+
+    @property
     def environment(self):
         """Determine which Braintree environment to use."""
         if self.settings["LIVE"]:
@@ -90,7 +94,17 @@ class BraintreeIPN(IPNBase):
         Return True if the payment has Settled or Failed, or False if it is
         still pending.
         """
-        transaction = braintree.Transaction.find(transaction_id)
+        transaction = None
+        if not transaction_id and self.is_recurring:
+            # We don't have a transaction in hand, since we just started the subscription
+            # Check subscription status instead
+            subscription_id = self.cart.recurring_lineitems[0].payment_token
+            subscription = braintree.Subscription.find(subscription_id)
+            if subscription:
+                if len(subscription.transactions) > 0:
+                    transaction = subscription.transactions[-1]
+        else:
+            transaction = braintree.Transaction.find(transaction_id)
         if transaction:
             payment = self._record_payment(transaction)
             if payment:

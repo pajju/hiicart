@@ -1,13 +1,15 @@
+import logging
 import braintree
 
 from django.template import Context, loader
 
 from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult, PaymentResult, GatewayError
-from hiicart.gateway.braintree.forms import PaymentForm
+from hiicart.gateway.braintree.forms import make_form
 from hiicart.gateway.braintree.ipn import BraintreeIPN
 from hiicart.gateway.braintree.settings import SETTINGS as default_settings
 from hiicart.gateway.braintree.tasks import update_payment_status
 
+log = logging.getLogger('hiicart.gateway.braintree.gateway')
 
 class BraintreeGateway(PaymentGatewayBase):
     """Payment Gateway for Braintree."""
@@ -47,7 +49,7 @@ class BraintreeGateway(PaymentGatewayBase):
     @property
     def form(self):
         """Returns an instance of PaymentForm."""
-        return PaymentForm()
+        return make_form(self.is_recurring)()
 
     def start_transaction(self, request):
         """
@@ -59,9 +61,11 @@ class BraintreeGateway(PaymentGatewayBase):
         """
         if self.is_recurring:
             tr_data = braintree.Customer.tr_data_for_create({
-                'credit_card': {
-                    'options': {
-                        'verify_card': True
+                'customer': {
+                    'credit_card': {
+                        'options': {
+                            'verify_card': True
+                        }
                     }
                 }},
                 request.build_absolute_uri(request.path))
@@ -99,9 +103,11 @@ class BraintreeGateway(PaymentGatewayBase):
                 credit_card = result.customer.credit_cards[0]
                 created = handler.create_subscription(credit_card)
                 if created:
+                    # TODO: Card verification status is not coming back from braintree when we
+                    # do a customer create with credit_card:options:verify_card=True
                     return PaymentResult(transaction_id=None,
                                          success=True,
-                                         status=result.credit_card_verification.status)
+                                         status='success')
             else:
                 created = handler.new_order(result.transaction)
                 if created:
@@ -120,7 +126,7 @@ class BraintreeGateway(PaymentGatewayBase):
             transaction_id = None
             status = result.credit_card_verification.status
             if result.credit_card_verification.status == "processor_declined":
-                errors = {'non_field_errors': result.credit_card_verification.processor_response_text}
+                errors = {'non_field_errors': 'The credit card was declined'}
             elif result.credit_card_verification.status == "gateway_rejected":
                 errors = {'non_field_errors': result.credit_card_verification.gateway_rejection_reason}
         else:
@@ -128,11 +134,15 @@ class BraintreeGateway(PaymentGatewayBase):
             status = None
             for error in result.errors.deep_errors:
                 errors[error.attribute] = error.message
+
         return PaymentResult(transaction_id=transaction_id, success=False,
                              status=status, errors=errors)
 
     def update_payment_status(self, transaction_id):
-        update_payment_status.apply_async(args=[self.cart.id, transaction_id], countdown=300)
+        try:
+            update_payment_status.apply_async(args=[self.cart.id, transaction_id], countdown=300)
+        except Exception, e:
+            log.error("Error updating payment status: %s" % e)
 
     
     def apply_discount(self, subscription_id, discount_id, num_billing_cycles=1, quantity=1):
