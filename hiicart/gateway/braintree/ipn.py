@@ -87,6 +87,14 @@ class BraintreeIPN(IPNBase):
         self.cart.save()
         return self._record_payment(transaction)
 
+
+    def accept_payment(self, transaction):
+        payment = self._record_payment(transaction)
+        if payment:
+            self.cart.update_state()
+            self.cart.save()
+
+
     def update_order_status(self, transaction_id):
         """
         Check the state of a Braintree transaction and update the order.
@@ -106,12 +114,8 @@ class BraintreeIPN(IPNBase):
         else:
             transaction = braintree.Transaction.find(transaction_id)
         if transaction:
-            payment = self._record_payment(transaction)
+            payment = self.accept_payment(transaction)
             if payment:
-                if payment.state == "PAID":
-                    self.cart.set_state("COMPLETED")
-                elif payment.state == "CANCELLED":
-                    self.cart.set_state("CANCELLED")
                 return payment.state != "PENDING"
         return False
 

@@ -58,7 +58,7 @@ PAYMENT_STATES = (("PENDING", "Pending"),
 # What state transitions are valid for a cart
 VALID_TRANSITIONS = {"OPEN": ["SUBMITTED", "ABANDONED", "COMPLETED",
                               "RECURRING", "PENDCANCEL", "CANCELLED"],
-                     "SUBMITTED": ["PAID", "COMPLETED", "RECURRING",
+                     "SUBMITTED": ["COMPLETED", "RECURRING",
                                    "PENDCANCEL", "CANCELLED"],
                      "ABANDONED": [],
                      "COMPLETED": ["RECURRING", "PENDCANCEL", "CANCELLED"],
@@ -389,17 +389,17 @@ class HiiCartBase(models.Model):
         total_paid = sum([p.amount for p in self.payments.filter(state="PAID")])
         # Subscriptions involve multiple payments, therefore diff may be < 0
         if self.total - total_paid <= 0:
-            newstate = "PAID"
+            newstate = "COMPLETED"
         if any([li.is_active for li in self.recurring_lineitems]):
             newstate = "RECURRING"
         elif len(self.recurring_lineitems) > 0:
             # Paid and then cancelled, but not expired
-            if newstate == "PAID" and not all([r.is_expired() for r in self.recurring_lineitems]):
+            if newstate == "COMPLETED" and not all([r.is_expired() for r in self.recurring_lineitems]):
                 newstate = "PENDCANCEL"
             # Could be cancelled manually (is_active set to False)
             # Could be a re-subscription, but is now cancelled. Is not paid.
             # Could be expired
-            elif newstate == "PAID" or self.state == "RECURRING":
+            elif newstate == "COMPLETED" or self.state == "RECURRING":
                 newstate = "CANCELLED"
         # Validate transition then save
         if newstate and newstate != self.state and self._is_valid_transition(self.state, newstate):

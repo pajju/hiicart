@@ -191,6 +191,9 @@ class BraintreeGateway(PaymentGatewayBase):
     
 
     def apply_discount(self, subscription_id, discount_id, num_billing_cycles=1, quantity=1):
+        """
+        Apply a discount to an existing subscription.
+        """
         subscription = braintree.Subscription.find(subscription_id)
         existing_discounts = filter(lambda d: d.id==discount_id, subscription.discounts)
         args = self.create_discount_args(discount_id, num_bulling_cycles, quantity, existing_discounts)
@@ -208,8 +211,37 @@ class BraintreeGateway(PaymentGatewayBase):
 
         
     def cancel_recurring(self):
+        """
+        Cancel a cart's subscription.
+        """
+        if not self.is_recurring:
+            return None
         subscription_id = self.cart.recurring_lineitems[0].payment_token
         result = braintree.Subscription.cancel(subscription_id)
         return SubscriptionResult(transaction_id=subscription_id,
                                   success=result.is_success, status=result.subscription.status,
                                   gateway_result=result)
+
+
+    def charge_recurring(self, grace_period=None):
+        """
+        Charge a cart's recurring item, if necessary.
+        NOTE: Currently only one recurring item is supported per cart,
+              so charge the first one found.
+        We use braintree's subscriptions for recurring billing, so we don't manually
+        charge recurring payments. Instead, we poll braintree to get new 
+        payments/transactions.
+        """
+        if not grace_period:
+            grace_period = self.settings.get("CHARGE_RECURRING_GRACE_PERIOD", None)
+        recurring = [li for li in self.cart.recurring_lineitems if li.is_active]
+        if not recurring or not recurring[0].is_expired(grace_period=grace_period):
+            return
+        item = recurring[0]
+
+        handler = BraintreeIPN(self.cart)
+        result = braintree.Subscription.find(item.payment_token)
+        transactions = result.subscription.transactions
+        for t in transactions:
+            handler.accept_payment(t)
+
