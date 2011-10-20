@@ -1,7 +1,7 @@
 import braintree
 from datetime import datetime
 from decimal import Decimal
-from hiicart.gateway.base import IPNBase, PaymentResult
+from hiicart.gateway.base import IPNBase, TransactionResult, SubscriptionResult
 from hiicart.gateway.braintree.settings import SETTINGS as default_settings
 from hiicart.models import CART_TYPES
 
@@ -85,7 +85,7 @@ class BraintreeIPN(IPNBase):
         self.cart.bill_country = transaction.billing["country_code_alpha2"] or self.cart.bill_country
         self.cart._cart_state = "SUBMITTED"
         self.cart.save()
-        self._record_payment(transaction)
+        return self._record_payment(transaction)
 
     def update_order_status(self, transaction_id):
         """
@@ -127,9 +127,14 @@ class BraintreeIPN(IPNBase):
             if payment:
                 payment[0].state = "FAILED"
                 payment[0].save()
-        return result.is_success
+            status = 'success'
+        else:
+            status = result.transaction.status if hasattr(result, 'transaction') else 'error'
+        return TransactionResult(transaction_id=transaction_id,
+                                 success=result.is_success, status=status,
+                                 gateway_result=result)
 
-    def create_subscription(self, payment_method, gateway_plan_id=None):
+    def create_subscription(self, payment_method, gateway_plan_id=None, gateway_dict=None):
         item = self.cart.recurring_lineitems[0]
         
         if not gateway_plan_id:
@@ -138,14 +143,26 @@ class BraintreeIPN(IPNBase):
         if not gateway_plan_id:
             raise GatewayError("Don't know how to determine Braintree subscription plan ID for SKU: %s" % item.sku)
 
-        subscribe_result = braintree.Subscription.create({
+        subscribe_args = {
             'payment_method_token': payment_method.token,
-            'plan_id': gateway_plan_id})
-        if subscribe_result.is_success:
-            item.payment_token = subscribe_result.subscription.id
+            'plan_id': gateway_plan_id
+        }
+        if gateway_dict:
+            subscribe_args.update(gateway_dict)
+
+        result = braintree.Subscription.create(subscribe_args)
+
+        transaction_id = None
+        if result.is_success:
+            item.payment_token = result.subscription.id
             item.is_active = True
             item.save()
             self.cart.update_state()
             self.cart.save()
-            return True
-        return False
+
+            transaction_id = result.subscription.id
+            status = 'success'
+        else:
+            status = result.transaction.status if hasattr(result, 'transaction') else result.subscription.status
+        return SubscriptionResult(transaction_id=transaction_id, success=result.is_success,
+                                  status=status, gateway_result=result)
