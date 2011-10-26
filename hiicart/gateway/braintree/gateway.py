@@ -107,7 +107,7 @@ class BraintreeGateway(PaymentGatewayBase):
             errors = {'non_field_errors': 'Request to payment gateway failed.'}
             return result_class(transaction_id=None, 
                                 success=False, status=None, errors=errors,
-                                gateway_result=result)
+                                gateway_result=None)
 
         if result.is_success:
             handler = BraintreeIPN(self.cart)
@@ -131,22 +131,20 @@ class BraintreeGateway(PaymentGatewayBase):
         errors = {}
         transaction_id = None
         status = None
-        if hasattr(result, 'transaction'):
-            transaction_id = result.transaction.id
-            status = result.transaction.status
-            if result.transaction.status == "processor_declined":
-                errors = {'non_field_errors': result.transaction.processor_response_text}
-            elif result.transaction.status == "gateway_rejected":
-                errors = {'non_field_errors': result.transaction.gateway_rejection_reason}
-        elif hasattr(result, 'credit_card_verification:'):
-            status = result.credit_card_verification.status
-            if result.credit_card_verification.status == "processor_declined":
-                errors = {'non_field_errors': 'The credit card was declined'}
-            elif result.credit_card_verification.status == "gateway_rejected":
-                errors = {'non_field_errors': result.credit_card_verification.gateway_rejection_reason}
+        obj = getattr(result, 'transaction', None) or getattr(result, 'credit_card_verification', None)
+        if obj:
+            transaction_id = getattr(obj, 'id', None)
+            status = getattr(obj, 'status', None)
+            if status == 'processor_declined':
+                errors = {'non_field_errors': getattr(obj, 'processor_response_text', 'There was an error communicating with the gateway')}
+            elif status == 'gateway_rejected':
+                errors = {'non_field_errors': getattr(obj, 'gateway_rejection_reason', 'The card was declined')}
         else:
-            for error in result.errors.deep_errors:
-                errors[error.attribute] = error.message
+            message = getattr(result, 'message', None)
+            errors = {'non_field_errors': message}
+            if result.errors:
+                for error in result.errors.deep_errors:
+                    errors[error.attribute] = error.message
 
         return result_class(transaction_id=transaction_id, 
                             success=False, status=status, errors=errors,
@@ -202,7 +200,7 @@ class BraintreeGateway(PaymentGatewayBase):
         if result.is_success:
             status = 'success'
         else:
-            errors['non_field_errors'] = result.message if hasattr(result, 'message') else 'There was an error applying the discount'
+            errors['non_field_errors'] = getattr(result, 'message', 'There was an error applying the discount')
             status = 'error'
 
         return SubscriptionResult(transaction_id=subscription_id,
@@ -241,7 +239,7 @@ class BraintreeGateway(PaymentGatewayBase):
 
         handler = BraintreeIPN(self.cart)
         result = braintree.Subscription.find(item.payment_token)
-        transactions = result.subscription.transactions
+        transactions = result.transactions
         for t in transactions:
             handler.accept_payment(t)
 

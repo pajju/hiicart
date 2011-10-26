@@ -68,10 +68,12 @@ class _BasePaymentForm(object):
 
     def __getattr__(self, name):
         prefix = 'transaction__' if self.__class__.__name__ == 'PaymentForm' else 'customer__'
-        if 'billing' in name and prefix == 'customer__':
+        newname = name
+        if 'billing__' in name and prefix == 'customer__':
             prefix = 'customer__credit_card__'
+            newname = name.replace('billing__', 'billing_address__')
         try:
-            return self[prefix+name]
+            return self[prefix+newname]
         except KeyError:
             return object.__getattribute__(self, name)
 
@@ -101,16 +103,18 @@ def make_form(is_recurring=False):
         })
 
     if prefix == 'customer__':
-        prefix = 'customer__credit_card__'
+        prefix = 'customer__credit_card__billing_address__'
+    else:
+        prefix = 'transaction__credit_card__billing__'
     fields.update({
-        prefix+'billing__first_name': forms.CharField(max_length=255),
-        prefix+'billing__last_name': forms.CharField(max_length=255),
-        prefix+'billing__street_address': forms.CharField(max_length=80),
-        prefix+'billing__extended_address': forms.CharField(max_length=80),
-        prefix+'billing__locality': forms.CharField(max_length=50),
-        prefix+'billing__region': forms.CharField(max_length=50),
-        prefix+'billing__postal_code': forms.CharField(max_length=30),
-        prefix+'billing__country_code_alpha2': forms.CharField(max_length=2),
+        prefix+'first_name': forms.CharField(max_length=255),
+        prefix+'last_name': forms.CharField(max_length=255),
+        prefix+'street_address': forms.CharField(max_length=80),
+        prefix+'extended_address': forms.CharField(max_length=80),
+        prefix+'locality': forms.CharField(max_length=50),
+        prefix+'region': forms.CharField(max_length=50),
+        prefix+'postal_code': forms.CharField(max_length=30),
+        prefix+'country_code_alpha2': forms.CharField(max_length=2),
     })
         
     typename = 'CustomerForm' if is_recurring else 'PaymentForm'
