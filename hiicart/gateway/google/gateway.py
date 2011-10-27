@@ -100,8 +100,8 @@ class GoogleGateway(PaymentGatewayBase):
 
         template = loader.get_template("gateway/google/refund.xml")
         ctx = Context({"transaction_id": transaction_id,
-                       "comment": comment,
                        "reason": reason,
+                       "comment": None,
                        "currency": self.settings["CURRENCY"],
                        "amount": Decimal(amount).quantize(Decimal('.01'))})
         refund_xml = convertToUTF8(template.render(ctx))
