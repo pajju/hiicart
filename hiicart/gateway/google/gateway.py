@@ -2,6 +2,7 @@ import base64
 import httplib2
 import urllib
 import xml.etree.cElementTree as ET
+from decimal import Decimal
 
 from django.template import Context, loader
 
