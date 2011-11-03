@@ -105,7 +105,7 @@ def make_form(is_recurring=False):
     if prefix == 'customer__':
         prefix = 'customer__credit_card__billing_address__'
     else:
-        prefix = 'transaction__credit_card__billing__'
+        prefix = 'transaction__billing__'
     fields.update({
         prefix+'first_name': forms.CharField(max_length=255),
         prefix+'last_name': forms.CharField(max_length=255),
