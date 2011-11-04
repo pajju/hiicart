@@ -96,13 +96,13 @@ class AuthorizeNetGateway(PaymentGatewayBase):
         response = self.get_response()
         if response:
             if response.response_code == 1:
-                result = PaymentResult(transaction_id=0, success=True,
+                result = PaymentResult('transaction', transaction_id=0, success=True,
                                        status="APPROVED")
             else:
-                result = PaymentResult(transaction_id=0, success=False, 
+                result = PaymentResult('transaction', transaction_id=0, success=False, 
                                        status="DECLINED", errors=response.response_text)
             response.delete()
         else:
-            result = PaymentResult(transaction_id=None, success=False,
+            result = PaymentResult('transaction', transaction_id=None, success=False,
                                    status=None, errors="Failed to process transaction")
         return result

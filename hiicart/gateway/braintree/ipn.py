@@ -1,7 +1,7 @@
 import braintree
 from datetime import datetime
 from decimal import Decimal
-from hiicart.gateway.base import IPNBase, PaymentResult
+from hiicart.gateway.base import IPNBase, TransactionResult, SubscriptionResult
 from hiicart.gateway.braintree.settings import SETTINGS as default_settings
 from hiicart.models import CART_TYPES
 
@@ -24,6 +24,10 @@ class BraintreeIPN(IPNBase):
                                           self.settings["MERCHANT_ID"],
                                           self.settings["MERCHANT_KEY"],
                                           self.settings["MERCHANT_PRIVATE_KEY"])
+
+    @property
+    def is_recurring(self):
+        return len(self.cart.recurring_lineitems) > 0
 
     @property
     def environment(self):
@@ -81,7 +85,15 @@ class BraintreeIPN(IPNBase):
         self.cart.bill_country = transaction.billing["country_code_alpha2"] or self.cart.bill_country
         self.cart._cart_state = "SUBMITTED"
         self.cart.save()
-        self._record_payment(transaction)
+        return self._record_payment(transaction)
+
+
+    def accept_payment(self, transaction):
+        payment = self._record_payment(transaction)
+        if payment:
+            self.cart.update_state()
+            self.cart.save()
+
 
     def update_order_status(self, transaction_id):
         """
@@ -90,14 +102,20 @@ class BraintreeIPN(IPNBase):
         Return True if the payment has Settled or Failed, or False if it is
         still pending.
         """
-        transaction = braintree.Transaction.find(transaction_id)
+        transaction = None
+        if not transaction_id and self.is_recurring:
+            # We don't have a transaction in hand, since we just started the subscription
+            # Check subscription status instead
+            subscription_id = self.cart.recurring_lineitems[0].payment_token
+            subscription = braintree.Subscription.find(subscription_id)
+            if subscription:
+                if len(subscription.transactions) > 0:
+                    transaction = subscription.transactions[-1]
+        else:
+            transaction = braintree.Transaction.find(transaction_id)
         if transaction:
-            payment = self._record_payment(transaction)
+            payment = self.accept_payment(transaction)
             if payment:
-                if payment.state == "PAID":
-                    self.cart.set_state("COMPLETED")
-                elif payment.state == "CANCELLED":
-                    self.cart.set_state("CANCELLED")
                 return payment.state != "PENDING"
         return False
 
@@ -113,4 +131,42 @@ class BraintreeIPN(IPNBase):
             if payment:
                 payment[0].state = "FAILED"
                 payment[0].save()
-        return result.is_success
+            status = 'success'
+        else:
+            status = result.transaction.status if hasattr(result, 'transaction') else 'error'
+        return TransactionResult(transaction_id=transaction_id,
+                                 success=result.is_success, status=status,
+                                 gateway_result=result)
+
+    def create_subscription(self, payment_method, gateway_plan_id=None, gateway_dict=None):
+        item = self.cart.recurring_lineitems[0]
+        
+        if not gateway_plan_id:
+            plan_id_by_sku = self.settings.get('PLAN_ID_BY_SKU', {})
+            gateway_plan_id = plan_id_by_sku.get(item.sku, None)
+        if not gateway_plan_id:
+            raise GatewayError("Don't know how to determine Braintree subscription plan ID for SKU: %s" % item.sku)
+
+        subscribe_args = {
+            'payment_method_token': payment_method.token,
+            'plan_id': gateway_plan_id
+        }
+        if gateway_dict:
+            subscribe_args.update(gateway_dict)
+
+        result = braintree.Subscription.create(subscribe_args)
+
+        transaction_id = None
+        if result.is_success:
+            item.payment_token = result.subscription.id
+            item.is_active = True
+            item.save()
+            self.cart.update_state()
+            self.cart.save()
+
+            transaction_id = result.subscription.id
+            status = 'success'
+        else:
+            status = result.transaction.status if hasattr(result, 'transaction') else result.subscription.status
+        return SubscriptionResult(transaction_id=transaction_id, success=result.is_success,
+                                  status=status, gateway_result=result)

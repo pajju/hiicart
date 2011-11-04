@@ -178,8 +178,21 @@ class PaymentResult(object):
     Result for a payment confirmation.
     Currently only supported with direct payment gateways.
     """
-    def __init__(self, transaction_id, success, status, errors=None):
+    def __init__(self, transaction_id, success, status, errors=None, gateway_result=None):
         self.transaction_id = transaction_id
         self.success = success
         self.status = status
         self.errors = errors
+        self.gateway_result = gateway_result
+
+class TransactionResult(PaymentResult):
+    """
+    Result for a direct transaction (auth, auth'n'capture, void, refund)
+    """
+    pass
+
+class SubscriptionResult(PaymentResult):
+    """
+    Result for a subscription operation (create, update, delete, modify)
+    """
+    pass

@@ -291,7 +291,6 @@ class PaypalGateway(PaymentGatewayBase):
             params['note'] = reason
 
         response = self._do_nvp('RefundTransaction', params)
-        print response
 
         return SubmitResult(None)
 
