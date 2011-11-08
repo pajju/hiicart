@@ -1,4 +1,4 @@
-__version__ = '0.2.12'
+__version__ = '0.3.0'
 
 
 def validate_gateway(gateway):
@@ -10,6 +10,8 @@ def validate_gateway(gateway):
     from hiicart.gateway.paypal.gateway import PaypalGateway
     from hiicart.gateway.paypal2.gateway import Paypal2Gateway
     from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
+    from hiicart.gateway.braintree.gateway import BraintreeGateway
+    from hiicart.gateway.authorizenet.gateway import AuthorizeNetGateway
     if gateway == "amazon":
         cls = AmazonGateway
     elif gateway == "google":
@@ -20,6 +22,10 @@ def validate_gateway(gateway):
         cls = Paypal2Gateway
     elif gateway == "paypal_adaptive":
         cls = PaypalAPGateway
+    elif gateway == "braintree":
+        cls = BraintreeGateway
+    elif gateway == "authorizenet":
+        cls = AuthorizeNetGateway
     try:
         obj = cls()
         return obj._is_valid() or "Authentication Error"

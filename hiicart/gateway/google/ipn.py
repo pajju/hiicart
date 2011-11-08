@@ -159,7 +159,7 @@ class GoogleIPN(IPNBase):
         amount = Decimal(data["latest-refund-amount"]) * -1
         pmnt = self._record_payment(data, amount=amount)
         if pmnt:
-           pmnt.cart.update_state()
+            pmnt.cart.update_state()
 
     def risk_information(self, data):
         """

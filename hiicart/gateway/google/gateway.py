@@ -2,6 +2,7 @@ import base64
 import httplib2
 import urllib
 import xml.etree.cElementTree as ET
+from decimal import Decimal
 
 from django.template import Context, loader
 
@@ -30,9 +31,9 @@ class GoogleGateway(PaymentGatewayBase):
     def _order_url(self):
         """URL for the Order Processing API."""
         if self.settings["LIVE"]:
-            base = "https://checkout.google.com/api/checkout/v2/requestForm/Merchant/%s"
+            base = "https://checkout.google.com/api/checkout/v2/request/Merchant/%s"
         else:
-            base = "https://sandbox.google.com/checkout/api/checkout/v2/requestForm/Merchant/%s"
+            base = "https://sandbox.google.com/checkout/api/checkout/v2/request/Merchant/%s"
         return base % self.settings["MERCHANT_ID"]
 
     def _is_valid(self):
@@ -40,33 +41,19 @@ class GoogleGateway(PaymentGatewayBase):
         # TODO: Query Google to validate credentials
         return True
 
-    def _send_command(self, url, params):
+    def _send_xml(self, url, xml):
         """Send a command to the Checkout Order Processing API."""
         http = httplib2.Http()
         headers = {"Content-type" : "application/x-www-form-urlencoded",
                    "Authorization" : "Basic %s" % self.get_basic_auth()}
-        params = urllib.urlencode(params)
-        return http.request(url, "POST", params, headers=headers)
+        return http.request(url, "POST", xml, headers=headers)
 
     def cancel_recurring(self):
         """Cancel recurring items with gateway. Returns a CancelResult."""
         # Cancellation is a problem beacuse it requires refund. Need to find a way around this.
         # May have to redirect users to subscription page like Paypal does.
-        raise NotImplementedError
-        #if self.cart.payments.count() == 0 or len(self.cart.recurring_lineitems) == 0:
-        #    return
-        #payment = self.cart.payments.all()[0]
-        #item = self.cart.recurring_lineitems[0]
-        #params = {"_type" : "cancel-items",
-        #          "google-order-number": payment.transaction_id,
-        #          "reason" : "",
-        #          "comment" : "",
-        #          "item-ids.item-id-1.merchant-item-id" : item.sku,
-        #          "send-email": False}
-        #response, content = self._send_command(self._order_url, params)
-        #self.log.debug("cancel-items response: %s" % content)
-        #item.is_active = False
-        #item.save()
+        msg = "Cancellation requires a refund on Google so cancellation must be done manually."
+        raise NotImplementedError(msg)
 
     def charge_recurring(self, grace_period=None):
         """HiiCart doesn't currently support manually charging subscriptions with Google Checkout"""
@@ -96,12 +83,29 @@ class GoogleGateway(PaymentGatewayBase):
                        "edit_cart_url": self.settings.get("EDIT_URL", None),
                        "currency": self.settings["CURRENCY"]})
         cart_xml = convertToUTF8(template.render(ctx))
-        # Post to Google
-        headers = {"Content-type": "application/x-www-form-urlencoded",
-                   "Authorization": "Basic %s" % self.get_basic_auth()}
-        http = httplib2.Http()
-        response, content = http.request(self._cart_url, "POST", cart_xml,
-                                         headers=headers)
+        response, content = self._send_xml(self._cart_url, cart_xml)
         xml = ET.XML(content)
         url = xml.find("{http://checkout.google.com/schema/2}redirect-url").text
         return SubmitResult("url", url)
+
+    def refund_payment(self, payment, reason=None):
+        """
+        Refund the full amount of this payment
+        """
+        self.refund(payment.transaction_id, payment.amount, reason)
+
+    def refund(self, transaction_id, amount, reason=None):
+        """Refund a payment."""
+        cart_settings_kwargs = None
+        self._update_with_cart_settings({'request': None})
+
+        template = loader.get_template("gateway/google/refund.xml")
+        ctx = Context({"transaction_id": transaction_id,
+                       "reason": reason,
+                       "comment": None,
+                       "currency": self.settings["CURRENCY"],
+                       "amount": Decimal(amount).quantize(Decimal('.01'))})
+        refund_xml = convertToUTF8(template.render(ctx))
+        response, content = self._send_xml(self._order_url, refund_xml)
+        return SubmitResult(None)
+

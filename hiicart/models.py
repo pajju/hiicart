@@ -58,7 +58,7 @@ PAYMENT_STATES = (("PENDING", "Pending"),
 # What state transitions are valid for a cart
 VALID_TRANSITIONS = {"OPEN": ["SUBMITTED", "ABANDONED", "COMPLETED",
                               "RECURRING", "PENDCANCEL", "CANCELLED"],
-                     "SUBMITTED": ["PAID", "COMPLETED", "RECURRING",
+                     "SUBMITTED": ["COMPLETED", "RECURRING",
                                    "PENDCANCEL", "CANCELLED"],
                      "ABANDONED": [],
                      "COMPLETED": ["RECURRING", "PENDCANCEL", "CANCELLED"],
@@ -322,6 +322,8 @@ class HiiCartBase(models.Model):
         from hiicart.gateway.paypal.gateway import PaypalGateway
         from hiicart.gateway.paypal2.gateway import Paypal2Gateway
         from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
+        from hiicart.gateway.braintree.gateway import BraintreeGateway
+        from hiicart.gateway.authorizenet.gateway import AuthorizeNetGateway    
 
         """Factory to get payment gateways."""
         if name == "amazon":
@@ -336,6 +338,10 @@ class HiiCartBase(models.Model):
             return Paypal2Gateway(self)
         elif name == "paypal_adaptive":
             return PaypalAPGateway(self)
+        elif name == "braintree":
+            return BraintreeGateway(self)
+        elif name == "authorizenet":
+            return AuthorizeNetGateway(self)
         else:
             raise HiiCartError("Unknown gateway: %s" % name)
 
@@ -366,8 +372,11 @@ class HiiCartBase(models.Model):
         """Submit this cart to a payment gateway."""
         gateway = self._get_gateway(gateway_name)
         self.gateway = gateway_name
-        self.set_state("SUBMITTED")
-        return gateway.submit(collect_address, cart_settings_kwargs)
+        self.save()
+        result = gateway.submit(collect_address, cart_settings_kwargs)
+        if result.type is not "direct":
+            self.set_state("SUBMITTED")
+        return result
 
     def update_state(self):
         """
@@ -380,17 +389,17 @@ class HiiCartBase(models.Model):
         total_paid = sum([p.amount for p in self.payments.filter(state="PAID")])
         # Subscriptions involve multiple payments, therefore diff may be < 0
         if self.total - total_paid <= 0:
-            newstate = "PAID"
+            newstate = "COMPLETED"
         if any([li.is_active for li in self.recurring_lineitems]):
             newstate = "RECURRING"
         elif len(self.recurring_lineitems) > 0:
             # Paid and then cancelled, but not expired
-            if newstate == "PAID" and not all([r.is_expired() for r in self.recurring_lineitems]):
+            if newstate == "COMPLETED" and not all([r.is_expired() for r in self.recurring_lineitems]):
                 newstate = "PENDCANCEL"
             # Could be cancelled manually (is_active set to False)
             # Could be a re-subscription, but is now cancelled. Is not paid.
             # Could be expired
-            elif newstate == "PAID" or self.state == "RECURRING":
+            elif newstate == "COMPLETED" or self.state == "RECURRING":
                 newstate = "CANCELLED"
         # Validate transition then save
         if newstate and newstate != self.state and self._is_valid_transition(self.state, newstate):
@@ -632,3 +641,10 @@ class Note(models.Model):
 
     def __unicode__(self):
         return self.text
+
+
+class PaymentResponse(models.Model):
+    """Store the result of a payment attempt."""
+    cart = models.ForeignKey(HiiCart, related_name="payment_results")
+    response_code = models.PositiveIntegerField()
+    response_text = models.TextField()

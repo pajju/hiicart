@@ -1,0 +1,11 @@
+{% load hiicart_tags %}
+<?xml version="1.0" encoding="UTF-8"?>
+<refund-order xmlns="http://checkout.google.com/schema/2" google-order-number="{{ transaction_id }}">
+    <amount currency="{{ currency }}">{{ amount|floatformat:2 }}</amount>
+    {% if comment %}
+        <comment>{{ comment }}</comment>
+    {% endif %}
+    {% if reason %}
+        <reason>{{ reason }}</reason>
+    {% endif %}
+</refund-order>

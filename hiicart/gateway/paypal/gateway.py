@@ -1,5 +1,8 @@
 import os
+import urllib
 import urllib2
+import httplib2
+from cgi import parse_qs
 
 from decimal import Decimal
 from datetime import datetime, timedelta
@@ -34,6 +37,8 @@ RECURRING_PAYMENT = {
 
 POST_URL = "https://www.paypal.com/cgi-bin/webscr"
 POST_TEST_URL = "https://www.sandbox.paypal.com/cgi-bin/webscr"
+NVP_SIGNATURE_TEST_URL = "https://api-3t.sandbox.paypal.com/nvp"
+NVP_SIGNATURE_URL = "https://api-3t.paypal.com/nvp"
 
 class PaypalGateway(PaymentGatewayBase):
     """Paypal payment processor"""
@@ -61,6 +66,36 @@ class PaypalGateway(PaymentGatewayBase):
         else:
             url = POST_TEST_URL
         return mark_safe(url)
+
+    @property
+    def _nvp_url(self):
+        """URL to post NVP API call to"""
+        if self.settings['LIVE']:
+            url = NVP_SIGNATURE_URL
+        else:
+            url = NVP_SIGNATURE_TEST_URL
+        return mark_safe(url)
+
+    def _do_nvp(self, method, params_dict):
+        if not self.settings['API_USERNAME']:
+            raise GatewayError("You must have NVP API credentials to do API operations (%s) with Paypal" % method)
+        http = httplib2.Http()
+        params_dict['method'] = method
+        params_dict['user'] = self.settings['API_USERNAME']
+        params_dict['pwd'] = self.settings['API_PASSWORD']
+        params_dict['signature'] = self.settings['API_SIGNATURE']
+        params_dict['version'] = self.settings['API_VERSION']
+        encoded_params = urllib.urlencode(params_dict)
+
+        response, content = http.request(self._nvp_url, 'POST', encoded_params)
+        response_dict = parse_qs(content)
+        for k, v in response_dict.iteritems():
+            if type(v) == list:
+                response_dict[k] = v[0]
+        if response_dict['ACK'] != 'Success':
+            print response_dict
+            raise GatewayError("Error calling Paypal %s" % method)
+        return response_dict
 
     def _encrypt_data(self, data):
         """
@@ -237,3 +272,26 @@ class PaypalGateway(PaymentGatewayBase):
             data = {"encrypted": self._encrypt_data(data)}
         return SubmitResult("form", form_data={"action": self.submit_url,
                                                "fields": data})
+
+    def refund_payment(self, payment, reason=None):
+        """
+        Refund the full amount of this payment
+        """
+        self.refund(payment.transaction_id, None, reason)
+
+    def refund(self, transaction_id, amount=None, reason=None):
+        self._update_with_cart_settings({'request': None})
+        params = {}
+        params['transactionid'] = transaction_id
+        params['refundtype'] = 'Partial' if amount else 'Full'
+        if amount:
+            params['amt'] = Decimal(amount).quantize(Decimal('.01'))
+        params['currencycode'] = self.settings['CURRENCY_CODE']
+        if reason:
+            params['note'] = reason
+
+        response = self._do_nvp('RefundTransaction', params)
+
+        return SubmitResult(None)
+
+
