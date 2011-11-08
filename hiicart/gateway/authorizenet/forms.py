@@ -2,23 +2,24 @@ from datetime import datetime
 from django import forms
 from django.forms.util import ErrorDict
 
-PAYMENT_FIELDS = {'credit_card_number': 'x_card_num',
-                  'credit_card_cvv': 'x_card_code',
-                  'credit_card_exp_date': 'x_exp_date',
-                  'billing_first_name': 'x_first_name',
-                  'billing_last_name': 'x_last_name',
-                  'billing_street': 'x_address',
-                  'billing_city': 'x_city',
-                  'billing_state': 'x_state',
-                  'billing_zipcode': 'x_zip',
-                  'billing_country': 'x_country',
-                  'shipping_first_name': 'x_ship_to_first_name',
-                  'shipping_last_name': 'x_ship_to_last_name',
-                  'shipping_street': 'x_ship_to_address',
-                  'shipping_city': 'x_ship_to_city',
-                  'shipping_state': 'x_ship_to_state',
-                  'shipping_zipcode': 'x_ship_to_zip',
-                  'shipping_country': 'x_ship_to_country'}
+PAYMENT_FIELDS = {'credit_card__number': 'x_card_num',
+                  'credit_card__cvv': 'x_card_code',
+                  'credit_card__exp_date': 'x_exp_date',
+                  'credit_card__expiration_month': 'x_exp_date',
+                  'billing__first_name': 'x_first_name',
+                  'billing__last_name': 'x_last_name',
+                  'billing__street_address': 'x_address',
+                  'billing__locality': 'x_city',
+                  'billing__region': 'x_state',
+                  'billing__postal_code': 'x_zip',
+                  'billing__country_code_alpha2': 'x_country',
+                  'shipping__first_name': 'x_ship_to_first_name',
+                  'shipping__last_name': 'x_ship_to_last_name',
+                  'shipping__street_address': 'x_ship_to_address',
+                  'shipping__locality': 'x_ship_to_city',
+                  'shipping__region': 'x_ship_to_state',
+                  'shipping__postal_code': 'x_ship_to_zip',
+                  'shipping__country_code_alpha2': 'x_ship_to_country'}
 
 EXPIRATION_MONTH_CHOICES = [(i, "%02d" % i) for i in range(1, 13)]
 EXPIRATION_YEAR_CHOICES = range(datetime.now().year, datetime.now().year + 10)
@@ -63,10 +64,13 @@ class PaymentForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super(PaymentForm, self).__init__(*args, **kwargs)
 
-    def __getitem__(self, key):
+    def __getattr__(self, key):
         if key in PAYMENT_FIELDS:
             key = PAYMENT_FIELDS[key]
-        return super(PaymentForm, self).__getitem__(key)
+        try:
+            return self[key]
+        except KeyError:
+            return object.__getattribute__(self, key)
 
     def set_transaction(self, data):
         self._submit_url = data['submit_url']
