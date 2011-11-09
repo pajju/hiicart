@@ -51,13 +51,14 @@ class AuthorizeNetGateway(PaymentGatewayBase):
         return PaymentForm()
 
     def start_transaction(self, request):
+        self._update_with_cart_settings({'request':request})
         sequence = random.randint(10000, 99999)
         timestamp = int(time.time())
         hash_message = "%s^%s^%s^%s^" % (self.settings['MERCHANT_ID'],
                                          timestamp, timestamp, self.cart.total)
         fp_hash = hmac.new(str(self.settings['MERCHANT_KEY']), hash_message)
         data = {'submit_url': self.submit_url,
-                'return_url': self.settings['RETURN_URL'] or request.build_absolute_uri(request.path),
+                'return_url': self.settings.get('RETURN_URL', None) or request.build_absolute_uri(request.path),
                 'cart_id': self.cart.cart_uuid,
                 'x_invoice_num': timestamp,
                 'x_fp_hash': fp_hash.hexdigest(),
@@ -83,6 +84,7 @@ class AuthorizeNetGateway(PaymentGatewayBase):
 
     def set_response(self, data):
         """Store payment result for confirm_payment."""
+
         response = PaymentResponse()
         response.cart = self.cart
         response.response_code = data['x_response_reason_code']
