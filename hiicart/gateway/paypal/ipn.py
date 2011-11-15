@@ -99,12 +99,9 @@ class PaypalIPN(IPNBase):
         mc_gross will be negative
         """
         transaction_id = data["txn_id"]
-        payment = self._create_payment(data["mc_gross"], transaction_id, "PENDING")
-        payment.state = "PAID" # Ensure proper state transitions
-        payment.save()
+        payment = self._create_payment(data["mc_gross"], transaction_id, "REFUND")
         self.cart.update_state()
-        self.cart.save()
-        
+        self.cart.save() 
 
     def confirm_ipn_data(self, raw_data):
         """Confirm IPN data using string raw post data.

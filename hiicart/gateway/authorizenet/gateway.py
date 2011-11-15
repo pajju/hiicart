@@ -72,6 +72,8 @@ class AuthorizeNetGateway(PaymentGatewayBase):
                 'x_type': 'AUTH_CAPTURE',
                 'x_version': '3.1'}
         if not self.settings['LIVE']:
+            # Set this value to false to get a real transaction # returned when running on
+            # sandbox.  A real transaction is required to for testing refunds.
             data['x_test_request'] = 'TRUE'
         return data
 
