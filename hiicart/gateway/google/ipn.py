@@ -18,7 +18,7 @@ class GoogleIPN(IPNBase):
         transaction_id = data["google-order-number"]
         for Cart in CART_TYPES:
             try:
-                return Cart.payment_class.objects.select_related('cart').get(transaction_id=transaction_id)
+                return Cart.payment_class.objects.select_related('cart').filter(transaction_id=transaction_id)[0]
             except:
                 pass
 
@@ -157,9 +157,9 @@ class GoogleIPN(IPNBase):
         the reason_code set to "REFUND"
         """
         amount = Decimal(data["latest-refund-amount"]) * -1
-        pmnt = self._record_payment(data, amount=amount)
-        if pmnt:
-            pmnt.cart.update_state()
+        payment = self._create_payment(amount, data["google-order-number"], 'REFUND')
+        self.cart.update_state()
+        self.cart.save()
 
     def risk_information(self, data):
         """

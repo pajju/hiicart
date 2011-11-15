@@ -48,11 +48,14 @@ HIICART_STATES = (("OPEN", "Open"),
                   ("COMPLETED", "Completed"),
                   ("RECURRING", "Recurring"),  # Subscription active
                   ("PENDCANCEL", "Pending Cancellation"),  # Subscription cancelled, but not expired yet
+                  ("REFUND", "Refunded"),
+                  ("PARTREFUND", "Partially Refunded"),
                   ("CANCELLED", "Cancelled"))
 
 PAYMENT_STATES = (("PENDING", "Pending"),
                   ("PAID", "Paid"),
                   ("FAILED", "Failed"),
+                  ("REFUND", "Refund"),
                   ("CANCELLED", "Cancelled"))
 
 # What state transitions are valid for a cart
@@ -61,7 +64,9 @@ VALID_TRANSITIONS = {"OPEN": ["SUBMITTED", "ABANDONED", "COMPLETED",
                      "SUBMITTED": ["COMPLETED", "RECURRING",
                                    "PENDCANCEL", "CANCELLED"],
                      "ABANDONED": [],
-                     "COMPLETED": ["RECURRING", "PENDCANCEL", "CANCELLED"],
+                     "COMPLETED": ["RECURRING", "PENDCANCEL", "CANCELLED", "REFUND", "PARTREFUND"],
+                     "PARTREFUND": ["REFUND"],
+                     "REFUND" : [],
                      "RECURRING": ["PENDCANCEL", "CANCELLED"],
                      "PENDCANCEL": ["CANCELLED"],
                      "CANCELLED": []}
@@ -386,10 +391,18 @@ class HiiCartBase(models.Model):
         function contains the logic for when those various states are used.
         """
         newstate = None
-        total_paid = sum([p.amount for p in self.payments.filter(state="PAID")])
+        payments = self.payments.all()
+        total_paid = sum([p.amount for p in payments if p.state == "PAID"])
+        total_refund = abs(sum([p.amount for p in payments if p.state == "REFUND"]))
         # Subscriptions involve multiple payments, therefore diff may be < 0
         if self.total - total_paid <= 0:
             newstate = "COMPLETED"
+        # If refunds exist determine if they represent a partial or full
+        if total_refund > 0 and total_refund < total_paid:
+            newstate = "PARTREFUND"
+        elif total_refund > 0 and total_refund >= total_paid:
+            newstate = "REFUND"
+        # Account for recurring state changes
         if any([li.is_active for li in self.recurring_lineitems]):
             newstate = "RECURRING"
         elif len(self.recurring_lineitems) > 0:
