@@ -75,8 +75,7 @@ class AuthorizeNetIPN(IPNBase):
         """Save form data to display back to user if payment validation fales"""
         if not self.cart:
             return
-        for model_field in FORM_MODEL_TRANSLATION:
-            form_field = FORM_MODEL_TRANSLATION[model_field]
+        for model_field, form_field in FORM_MODEL_TRANSLATION.items():
             if data[form_field]:
                 setattr(self.cart, model_field, data[form_field])
         self.cart.save()

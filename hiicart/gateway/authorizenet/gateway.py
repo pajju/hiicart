@@ -76,8 +76,7 @@ class AuthorizeNetGateway(PaymentGatewayBase):
             # Set this value to false to get a real transaction # returned when running on
             # sandbox.  A real transaction is required to for testing refunds.
             data['x_test_request'] = 'FALSE'
-        for model_field in FORM_MODEL_TRANSLATION:
-            form_field = FORM_MODEL_TRANSLATION[model_field]            
+        for model_field, form_field in FORM_MODEL_TRANSLATION.items():
             data[form_field] = getattr(self.cart, model_field)
         return data
 
