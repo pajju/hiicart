@@ -89,7 +89,22 @@ class PaymentForm(forms.Form):
         self._errors = ErrorDict()
         self.is_bound = True
         if not result.success:
-            self._errors[forms.forms.NON_FIELD_ERRORS] = self.error_class([result.errors])
+            # See http://www.authorize.net/support/merchant/Transaction_Response/Response_Reason_Codes_and_Response_Reason_Text.htm
+            #  For testing data http://www.authorize.net/files/ErrorGenerationGuide.pdf
+            print result.gateway_result
+            if result.gateway_result == 6:
+                name = "x_card_num"
+            elif result.gateway_result == 7:
+                name = "x_exp_date"
+            elif result.gateway_result == 8:
+                name = "x_exp_date"
+            elif result.gateway_result == 78:
+                name = "x_card_code"
+            elif result.gateway_result == 65:
+                name = "x_card_code"
+            else:
+                name = forms.forms.NON_FIELD_ERRORS
+            self._errors[name] = self.error_class([result.errors])
 
     def hidden_fields(self):
         """

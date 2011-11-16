@@ -6,6 +6,22 @@ from hiicart.gateway.base import IPNBase, PaymentResult
 from hiicart.gateway.authorizenet.settings import SETTINGS as default_settings
 from hiicart.models import CART_TYPES
 
+FORM_MODEL_TRANSLATION = {"ship_first_name": "x_ship_to_first_name",
+                          "ship_last_name": "x_ship_to_last_name",
+                          "ship_street1": "x_ship_to_address",
+                          "ship_city": "x_ship_to_city",
+                          "ship_state": "x_ship_to_state",
+                          "ship_postal_code": "x_ship_to_zip",
+                          "ship_country": "x_ship_to_country",
+                          "bill_first_name": "x_first_name",
+                          "bill_last_name": "x_last_name",
+                          "bill_street1": "x_address",
+                          "bill_city": "x_city",
+                          "bill_state": "x_state",
+                          "bill_postal_code": "x_zip",
+                          "bill_country": "x_country",
+                         }
+
 BRAINTREE_STATUS = {"PAID": ["settled"],
                     "PENDING": ["authorized", "authorizing",
                                 "submitted_for_settlement"],
@@ -55,26 +71,20 @@ class AuthorizeNetIPN(IPNBase):
             payment.save()
             return payment
 
+    def record_form_data(self, data):
+        """Save form data to display back to user if payment validation fales"""
+        if not self.cart:
+            return
+        for model_field in FORM_MODEL_TRANSLATION:
+            form_field = FORM_MODEL_TRANSLATION[model_field]
+            if data[form_field]:
+                setattr(self.cart, model_field, data[form_field])
+        self.cart.save()
+
     def accept_payment(self, data):
         """Save a new order using details from a transaction."""
         if not self.cart:
             return
-        self.cart.ship_first_name = data["x_ship_to_first_name"] or self.cart.ship_first_name
-        self.cart.ship_last_name = data["x_ship_to_last_name"] or self.cart.ship_last_name
-        self.cart.ship_street1 = data["x_ship_to_address"] or self.cart.ship_street1
-        #self.cart.ship_street2 = transaction.shipping["extended_address"] or self.cart.ship_street2
-        self.cart.ship_city = data["x_ship_to_city"] or self.cart.ship_city
-        self.cart.ship_state = data["x_ship_to_state"] or self.cart.ship_state
-        self.cart.ship_postal_code = data["x_ship_to_zip"] or self.cart.ship_postal_code
-        self.cart.ship_country = data["x_ship_to_country"] or self.cart.ship_country
-        self.cart.bill_first_name = data["x_first_name"] or self.cart.bill_first_name
-        self.cart.bill_last_name = data["x_last_name"] or self.cart.bill_last_name
-        self.cart.bill_street1 = data["x_address"] or self.cart.bill_street1
-        #self.cart.bill_street2 = transaction.billing["extended_address"] or self.cart.bill_street2
-        self.cart.bill_city = data["x_city"] or self.cart.bill_city
-        self.cart.bill_state = data["x_state"] or self.cart.bill_state
-        self.cart.bill_postal_code = data["x_zip"] or self.cart.bill_postal_code
-        self.cart.bill_country = data["x_country"] or self.cart.bill_country
         self.cart._cart_state = "SUBMITTED"
         self.cart.save()
         self._record_payment(data)
