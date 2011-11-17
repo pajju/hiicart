@@ -76,7 +76,7 @@ class AuthorizeNetIPN(IPNBase):
         if not self.cart:
             return
         for model_field, form_field in FORM_MODEL_TRANSLATION.items():
-            if data[form_field]:
+            if form_field in data and data[form_field]:
                 setattr(self.cart, model_field, data[form_field])
         self.cart.save()
 
