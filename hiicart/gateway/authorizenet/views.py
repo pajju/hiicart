@@ -41,6 +41,7 @@ def ipn(request):
     if not handler.confirm_ipn_data(data):
         log.error("Authorize.net IPN Confirmation Failed.")
         raise GatewayError("Authorize.net IPN Confirmation Failed.")
+    handler.record_form_data(data)
 
     if data['x_response_code'] == '1':  # Approved
         handler.accept_payment(data)
