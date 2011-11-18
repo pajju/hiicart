@@ -91,7 +91,6 @@ class PaymentForm(forms.Form):
         if not result.success:
             # See http://www.authorize.net/support/merchant/Transaction_Response/Response_Reason_Codes_and_Response_Reason_Text.htm
             #  For testing data http://www.authorize.net/files/ErrorGenerationGuide.pdf
-            print result.gateway_result
             if result.gateway_result == 6:
                 name = "x_card_num"
             elif result.gateway_result == 7:
