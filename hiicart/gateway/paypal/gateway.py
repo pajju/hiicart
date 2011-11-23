@@ -163,7 +163,8 @@ class PaypalGateway(PaymentGatewayBase):
         else:
             submit["no_shipping"] = NO_SHIPPING["YES"]
         submit["handling_cart"] = self.cart.shipping
-        submit["tax_cart"] = self.cart.tax
+        if self.cart.tax:
+            submit["tax_cart"] = self.cart.tax
         if self.cart.discount:
             submit['discount_amount_cart'] = self.cart.discount
         # Locale
