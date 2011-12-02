@@ -42,7 +42,6 @@ class AmazonIPN(IPNBase):
                 pending[0].save()
             elif self.cart.payments.filter(transaction_id=transaction_id).count() == 0: # No duplicate payments
                 self._create_payment(total, transaction_id, "PAID")
-            self.cart.update_state()
             self.begin_recurring()
         elif data["transactionStatus"] == "CANCELLED":
             message = "Purchase %i (txn:%s) was cancelled with message '%s'" % (
