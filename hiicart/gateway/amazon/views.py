@@ -8,6 +8,7 @@ from hiicart.gateway.base import GatewayError
 from hiicart.gateway.countries import COUNTRIES
 from hiicart.utils import format_exceptions, cart_by_uuid
 
+
 log = logging.getLogger("hiicart.gateway.amazon")
 
 
@@ -28,9 +29,18 @@ def cbui(request, settings=None):
     uses the provided authorization to initiate a Pay request.
     """
     log.debug("CBUI Received: \n%s" % pprint.pformat(dict(request.GET), indent=10))
-    cart = _find_cart(request.GET)
+    if "errorMessage" in request.GET:
+        for msg in request.GET["errorMessage"]:
+            log.error(msg)
+        cart = None
+    else:    
+        cart = _find_cart(request.GET)
     handler = AmazonIPN(cart)
     handler._update_with_cart_settings(cart_settings_kwargs={'request': request})
+    if not cart:
+        log.error("Unable to find cart.")
+        return HttpResponseRedirect(handler.settings.get("ERROR_RETURN_URL",
+                                    handler.settings.get("RETURN_URL", "/")))
     if not handler.verify_signature(request.GET.urlencode(), "GET", handler.settings["CBUI_RETURN_URL"]):
         log.error("Validation of Amazon request failed!")
         return HttpResponseRedirect(handler.settings.get("ERROR_RETURN_URL",
@@ -38,10 +48,6 @@ def cbui(request, settings=None):
     if request.GET["status"] not in ("SA", "SB", "SC"):
         log.error("CBUI unsuccessful. Status code: %s" % request.GET["status"])
         return HttpResponseRedirect(handler.settings.get("CANCEL_RETURN_URL",
-                                    handler.settings.get("RETURN_URL", "/")))
-    if not cart:
-        log.error("Unable to find cart.")
-        return HttpResponseRedirect(handler.settings.get("ERROR_RETURN_URL",
                                     handler.settings.get("RETURN_URL", "/")))
     # Address collection. Any data already in cart is assumed correct
     cart.bill_first_name = cart.bill_first_name or request.GET.get("billingName", "")
@@ -57,7 +63,7 @@ def cbui(request, settings=None):
     country = request.GET.get("country", "").upper()
     cart.bill_country = cart.bill_country or COUNTRIES.get(country, "")
     cart.ship_country = cart.ship_country or cart.bill_country
-    cart.bill_email = cart.bill_email = request.GET.get("buyerEmailAddress", "");
+    cart.bill_email = cart.bill_email = request.GET.get("buyerEmailAddress", "")
     cart.ship_email = cart.ship_email or cart.bill_email
     cart.save()
     recurring = cart.recurring_lineitems
