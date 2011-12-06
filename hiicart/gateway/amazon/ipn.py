@@ -128,7 +128,7 @@ class AmazonIPN(IPNBase):
                 self.begin_recurring()
             else: # Cancelled or Failure
                 msg = "Pay request for purchase '%s' returned status '%s'. \nFull response: %s" % (
-                            self.cart, response)
+                            self.cart, status.text, response)
                 self.log.warn(msg)
                 self.cart.notes.create(text=msg)
             self.cart.update_state()
