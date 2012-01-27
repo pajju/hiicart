@@ -111,6 +111,7 @@ class PaypalGateway(PaymentGatewayBase):
         raw.extend([u"%s=%s" % (key, val) for key, val in data.items() if val])
         raw = "\n".join(raw)
         raw = raw.encode("utf-8")
+        self.log.debug('Encrypted Paypal data: %s' % raw)
         # make an smime object
         s = SMIME.SMIME()
         # load our public and private keys
