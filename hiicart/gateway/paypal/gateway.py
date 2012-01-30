@@ -86,7 +86,6 @@ class PaypalGateway(PaymentGatewayBase):
         params_dict['signature'] = self.settings['API_SIGNATURE']
         params_dict['version'] = self.settings['API_VERSION']
         encoded_params = urllib.urlencode(params_dict)
-
         response, content = http.request(self._nvp_url, 'POST', encoded_params)
         response_dict = parse_qs(content)
         for k, v in response_dict.iteritems():
@@ -296,4 +295,8 @@ class PaypalGateway(PaymentGatewayBase):
 
         return SubmitResult(None)
 
-
+    def get_transaction_details(self, payment):
+        params = {}
+        params['transactionid'] = payment.transaction_id
+        response = self._do_nvp('GetTransactionDetails', params)
+        return response
