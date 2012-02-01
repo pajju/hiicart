@@ -6,6 +6,7 @@ from django.utils.safestring import mark_safe
 from hiicart.gateway.amazon import fps, ipn
 from hiicart.gateway.amazon.settings import SETTINGS as default_settings
 from hiicart.gateway.base import PaymentGatewayBase, SubmitResult, GatewayError
+from uuid import uuid4
 
 
 LIVE_CBUI_URL = "https://authorize.payments.amazon.com/cobranded-ui/actions/start"
@@ -88,9 +89,9 @@ class AmazonGateway(PaymentGatewayBase):
         # get the id of the last payment for refunding
         transaction_id = self.cart.payments.order_by('-last_updated')[0].transaction_id
         if refund_amount and isinstance(refund_amount, (long, float, int)):
-            fps.do_fps("Refund", "GET", self.settings, TransactionId=transaction_id, RefundAmount=refund_amount)
+            fps.do_fps("Refund", "GET", self.settings, TransactionId=transaction_id, RefundAmount=refund_amount, CallerReference=uuid4().hex)
         else:
-            fps.do_fps("Refund", "GET", self.settings, TransactionId=transaction_id)
+            fps.do_fps("Refund", "GET", self.settings, TransactionId=transaction_id, CallerReference=uuid4().hex)
 
     def charge_recurring(self, grace_period=None):
         """
