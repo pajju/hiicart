@@ -2,7 +2,6 @@
 
 import urllib
 from datetime import datetime
-from decimal import Decimal
 from django.utils.safestring import mark_safe
 from hiicart.gateway.amazon import fps, ipn
 from hiicart.gateway.amazon.settings import SETTINGS as default_settings
@@ -30,13 +29,13 @@ class AmazonGateway(PaymentGatewayBase):
 
     def _get_cbui_values(self, collect_address=False):
         "Get the key/values to be used in a co-branded UI request."
-        values = {"callerKey" : self.settings["AWS_KEY"],
-                  "CallerReference" : self.cart.cart_uuid,
-                  "SignatureMethod" : "HmacSHA256",
-                  "SignatureVersion" : 2,
-                  "version" : "2009-01-09",
-                  "returnURL" : self.settings["CBUI_RETURN_URL"],
-                  "transactionAmount" : self.cart.total,
+        values = {"callerKey": self.settings["AWS_KEY"],
+                  "CallerReference": self.cart.cart_uuid,
+                  "SignatureMethod": "HmacSHA256",
+                  "SignatureVersion": 2,
+                  "version": "2009-01-09",
+                  "returnURL": self.settings["CBUI_RETURN_URL"],
+                  "transactionAmount": self.cart.total,
                   "collectShippingAddress": str(collect_address)}
         if len(self.cart.recurring_lineitems) == 0:
             values["pipelineName"] = "SingleUse"
@@ -78,10 +77,20 @@ class AmazonGateway(PaymentGatewayBase):
             return
         item = self.cart.recurring_lineitems[0]
         token = item.payment_token
-        response = fps.do_fps("CancelToken", "GET", self.settings, TokenId=token)
-        item.is_active = False
+        fps.do_fps("CancelToken", "GET", self.settings, TokenId=token)
         item.save()
         self.cart.update_state()
+
+    def refund(self, refund_amount=None):
+        "refund the last transaction"
+        if len(self.cart.payments.all()) == 0:
+            return
+        # get the id of the last payment for refunding
+        transaction_id = self.cart.payments.order_by('-last_updated')[0].transaction_id
+        if refund_amount and isinstance(refund_amount, (long, float, int)):
+            fps.do_fps("Refund", "GET", self.settings, TransactionId=transaction_id, RefundAmount=refund_amount)
+        else:
+            fps.do_fps("Refund", "GET", self.settings, TransactionId=transaction_id)
 
     def charge_recurring(self, grace_period=None):
         """
@@ -98,7 +107,7 @@ class AmazonGateway(PaymentGatewayBase):
         payments = self.cart.payments \
                     .filter(state="PAID") \
                     .order_by("-created")
-        payment_id= '%s-%i' % (self.cart.cart_uuid, len(payments)+1)
+        payment_id = '%s-%i' % (self.cart.cart_uuid, len(payments) + 1)
         result = ipn.AmazonIPN(self.cart).make_pay_request(item.payment_token, payment_id)
         if result != "TokenUsageError" and result != "Pending" and result != "Success":
             # TokenUsageError is if we tried to charge too soon
@@ -116,5 +125,5 @@ class AmazonGateway(PaymentGatewayBase):
         values["Signature"] = fps.generate_signature("GET", values,
                                                      self._cbui_base_url,
                                                      self.settings)
-        url  = "%s?%s" % (self._cbui_base_url, urllib.urlencode(values))
+        url = "%s?%s" % (self._cbui_base_url, urllib.urlencode(values))
         return SubmitResult("url", url)

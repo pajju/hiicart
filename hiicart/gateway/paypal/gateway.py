@@ -300,3 +300,9 @@ class PaypalGateway(PaymentGatewayBase):
         params['transactionid'] = payment.transaction_id
         response = self._do_nvp('GetTransactionDetails', params)
         return response
+
+    def get_recurring_payments_profile_details(self, subscription_id):
+        params = {}
+        params['profileid'] = subscription_id
+        response = self._do_nvp('GetRecurringPaymentsProfileDetails', params)
+        return response
