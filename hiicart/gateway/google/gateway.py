@@ -57,6 +57,10 @@ class GoogleGateway(PaymentGatewayBase):
                        "items": items})
         cancel_xml = convertToUTF8(template.render(ctx))
         response, content = self._send_xml(self._order_url, cancel_xml)
+        # make sure the line item is not acitive
+        item = self.cart.recurring_lineitems[0]
+        item.is_active = False
+        item.save()
         self.cart.update_state()
         return SubmitResult(None)
 

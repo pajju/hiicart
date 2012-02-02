@@ -14,5 +14,8 @@
                 <merchant-item-id>{{item }}</merchant-item-id>
             </item-id>
         {% endfor %}
+    {% else %}
+        <item-ids />
     {% endif %}
+    <send-email>true</send-email>
 </cancel-items>
