@@ -97,6 +97,8 @@ class GoogleGateway(PaymentGatewayBase):
         Refund the full amount of this payment
         """
         self.refund(payment.transaction_id, payment.amount, reason)
+        payment.state = 'REFUND'
+        payment.save()
 
     def refund(self, transaction_id, amount, reason=None):
         """Refund a payment."""
