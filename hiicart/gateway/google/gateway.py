@@ -1,12 +1,11 @@
 import base64
 import httplib2
-import urllib
 import xml.etree.cElementTree as ET
 from decimal import Decimal
 
 from django.template import Context, loader
 
-from hiicart.gateway.base import PaymentGatewayBase, CancelResult, SubmitResult
+from hiicart.gateway.base import PaymentGatewayBase, SubmitResult
 from hiicart.gateway.google.settings import SETTINGS as default_settings
 from hiicart.lib.unicodeconverter import convertToUTF8
 
@@ -44,16 +43,21 @@ class GoogleGateway(PaymentGatewayBase):
     def _send_xml(self, url, xml):
         """Send a command to the Checkout Order Processing API."""
         http = httplib2.Http()
-        headers = {"Content-type" : "application/x-www-form-urlencoded",
-                   "Authorization" : "Basic %s" % self.get_basic_auth()}
+        headers = {"Content-type": "application/x-www-form-urlencoded",
+                   "Authorization": "Basic %s" % self.get_basic_auth()}
         return http.request(url, "POST", xml, headers=headers)
 
-    def cancel_recurring(self):
-        """Cancel recurring items with gateway. Returns a CancelResult."""
-        # Cancellation is a problem beacuse it requires refund. Need to find a way around this.
-        # May have to redirect users to subscription page like Paypal does.
-        msg = "Cancellation requires a refund on Google so cancellation must be done manually."
-        raise NotImplementedError(msg)
+    def cancel_items(self, payment, items=None, reason=None):
+        self._update_with_cart_settings({'request': None})
+        transaction_id = payment.transaction_id
+        template = loader.get_template("gateway/google/cancel-items.xml")
+        ctx = Context({"transaction_id": transaction_id,
+                       "reason": reason,
+                       "comment": None,
+                       "items": items})
+        cancel_xml = convertToUTF8(template.render(ctx))
+        response, content = self._send_xml(self._order_url, cancel_xml)
+        return SubmitResult(None)
 
     def charge_recurring(self, grace_period=None):
         """HiiCart doesn't currently support manually charging subscriptions with Google Checkout"""
@@ -96,7 +100,6 @@ class GoogleGateway(PaymentGatewayBase):
 
     def refund(self, transaction_id, amount, reason=None):
         """Refund a payment."""
-        cart_settings_kwargs = None
         self._update_with_cart_settings({'request': None})
 
         template = loader.get_template("gateway/google/refund.xml")
@@ -108,4 +111,3 @@ class GoogleGateway(PaymentGatewayBase):
         refund_xml = convertToUTF8(template.render(ctx))
         response, content = self._send_xml(self._order_url, refund_xml)
         return SubmitResult(None)
-
