@@ -57,6 +57,7 @@ class GoogleGateway(PaymentGatewayBase):
                        "items": items})
         cancel_xml = convertToUTF8(template.render(ctx))
         response, content = self._send_xml(self._order_url, cancel_xml)
+        self.cart.update_state()
         return SubmitResult(None)
 
     def charge_recurring(self, grace_period=None):
