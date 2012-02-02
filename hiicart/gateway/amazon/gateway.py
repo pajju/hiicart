@@ -79,6 +79,7 @@ class AmazonGateway(PaymentGatewayBase):
         item = self.cart.recurring_lineitems[0]
         token = item.payment_token
         fps.do_fps("CancelToken", "GET", self.settings, TokenId=token)
+        item.is_active = False
         item.save()
         self.cart.update_state()
 
