@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from django.template import Context, loader
 
-from hiicart.gateway.base import PaymentGatewayBase, SubmitResult
+from hiicart.gateway.base import PaymentGatewayBase, SubmitResult, CancelResult
 from hiicart.gateway.google.settings import SETTINGS as default_settings
 from hiicart.lib.unicodeconverter import convertToUTF8
 
@@ -62,10 +62,10 @@ class GoogleGateway(PaymentGatewayBase):
         item.is_active = False
         item.save()
         self.cart.update_state()
-        return SubmitResult(None)
+        return CancelResult(None)
 
     def cancel_recurring(self, payment, items=None, reason=None):
-        self.cancel_items(payment, items, reason)
+        return self.cancel_items(payment, items, reason)
 
     def charge_recurring(self, grace_period=None):
         """HiiCart doesn't currently support manually charging subscriptions with Google Checkout"""

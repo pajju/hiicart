@@ -5,7 +5,7 @@ from datetime import datetime
 from django.utils.safestring import mark_safe
 from hiicart.gateway.amazon import fps, ipn
 from hiicart.gateway.amazon.settings import SETTINGS as default_settings
-from hiicart.gateway.base import PaymentGatewayBase, SubmitResult, GatewayError
+from hiicart.gateway.base import PaymentGatewayBase, SubmitResult, GatewayError, CancelResult
 from uuid import uuid4
 
 
@@ -82,6 +82,7 @@ class AmazonGateway(PaymentGatewayBase):
         item.is_active = False
         item.save()
         self.cart.update_state()
+        return CancelResult(None)
 
     def refund(self, refund_amount=None):
         "refund the last transaction"
