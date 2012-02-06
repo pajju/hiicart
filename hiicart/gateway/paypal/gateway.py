@@ -86,7 +86,6 @@ class PaypalGateway(PaymentGatewayBase):
         params_dict['signature'] = self.settings['API_SIGNATURE']
         params_dict['version'] = self.settings['API_VERSION']
         encoded_params = urllib.urlencode(params_dict)
-
         response, content = http.request(self._nvp_url, 'POST', encoded_params)
         response_dict = parse_qs(content)
         for k, v in response_dict.iteritems():
@@ -111,6 +110,7 @@ class PaypalGateway(PaymentGatewayBase):
         raw.extend([u"%s=%s" % (key, val) for key, val in data.items() if val])
         raw = "\n".join(raw)
         raw = raw.encode("utf-8")
+        self.log.debug('Encrypted Paypal data: %s' % raw)
         # make an smime object
         s = SMIME.SMIME()
         # load our public and private keys
@@ -295,4 +295,14 @@ class PaypalGateway(PaymentGatewayBase):
 
         return SubmitResult(None)
 
+    def get_transaction_details(self, payment):
+        params = {}
+        params['transactionid'] = payment.transaction_id
+        response = self._do_nvp('GetTransactionDetails', params)
+        return response
 
+    def get_recurring_payments_profile_details(self, subscription_id):
+        params = {}
+        params['profileid'] = subscription_id
+        response = self._do_nvp('GetRecurringPaymentsProfileDetails', params)
+        return response

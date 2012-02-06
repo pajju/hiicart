@@ -1,0 +1,21 @@
+{% load hiicart_tags %}
+<?xml version="1.0" encoding="UTF-8"?>
+<cancel-items xmlns="http://checkout.google.com/schema/2" google-order-number="{{ transaction_id }}">
+    {% if comment %}
+        <comment>{{ comment }}</comment>
+    {% endif %}
+    {% if reason %}
+        <reason>{{ reason }}</reason>
+    {% endif %}
+    {% if items %}
+        <item-ids>
+        {% for item in items %}
+            <item-id>
+                <merchant-item-id>{{item }}</merchant-item-id>
+            </item-id>
+        {% endfor %}
+    {% else %}
+        <item-ids />
+    {% endif %}
+    <send-email>true</send-email>
+</cancel-items>
