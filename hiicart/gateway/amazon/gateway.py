@@ -89,7 +89,10 @@ class AmazonGateway(PaymentGatewayBase):
         if len(self.cart.payments.all()) == 0:
             return
         # get the id of the last payment for refunding
-        payment = self.cart.payments.order_by('-last_updated')[0]
+        payments = self.cart.payments.order_by('-last_updated')
+        if not payments:
+            return
+        payment = payments[0]
         transaction_id = payment.transaction_id
         if refund_amount and isinstance(refund_amount, (long, float, int)):
             fps.do_fps("Refund", "GET", self.settings, TransactionId=transaction_id, RefundAmount=refund_amount, CallerReference=uuid4().hex)
