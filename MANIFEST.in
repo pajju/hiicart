@@ -1,2 +1,3 @@
 recursive-include hiicart/templates *.xml
 recursive-include hiicart/gateway *.pem
+recursive-include hiicart/templates *.html

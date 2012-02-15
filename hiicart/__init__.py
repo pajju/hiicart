@@ -1,4 +1,4 @@
-__version__ = '0.2.12'
+__version__ = '0.3.1'
 
 
 def validate_gateway(gateway):
@@ -10,6 +10,8 @@ def validate_gateway(gateway):
     from hiicart.gateway.paypal.gateway import PaypalGateway
     from hiicart.gateway.paypal2.gateway import Paypal2Gateway
     from hiicart.gateway.paypal_adaptive.gateway import PaypalAPGateway
+    from hiicart.gateway.braintree.gateway import BraintreeGateway
+    from hiicart.gateway.authorizenet.gateway import AuthorizeNetGateway
     from hiicart.gateway.paypal_express.gateway import PaypalExpressCheckoutGateway
     gateways = {
         'amazon': AmazonGateway,
@@ -18,6 +20,8 @@ def validate_gateway(gateway):
         'paypal2': Paypal2Gateway,
         'paypal_adaptive': PaypalAPGateway,
         'paypal_express': PaypalExpressCheckoutGateway,
+        'braintree': BraintreeGateway,
+        'authorizenet': AuthorizeNetGateway
         }
     try:
         cls = gateways[gateway]

@@ -42,7 +42,6 @@ class AmazonIPN(IPNBase):
                 pending[0].save()
             elif self.cart.payments.filter(transaction_id=transaction_id).count() == 0: # No duplicate payments
                 self._create_payment(total, transaction_id, "PAID")
-            self.cart.update_state()
             self.begin_recurring()
         elif data["transactionStatus"] == "CANCELLED":
             message = "Purchase %i (txn:%s) was cancelled with message '%s'" % (
@@ -56,8 +55,11 @@ class AmazonIPN(IPNBase):
                 p.save()
             self.cart.update_state()
         elif data["transactionStatus"] == "FAILURE":
-            self.log.warn("Purchase %i (txn:%s) failed with message '%s'" % (
-                self.cart.id, data.get('transactionId'), data.get('statusMessage')))
+            self.log.warn("Purchase %i (txn:%s) failed with message '%s': \n%s" % (
+                self.cart.id, 
+                data.get('transactionId'), 
+                data.get('statusMessage'), 
+                data))
             self.cart.update_state()
 
     def begin_recurring(self):
@@ -129,7 +131,7 @@ class AmazonIPN(IPNBase):
                 self.begin_recurring()
             else: # Cancelled or Failure
                 msg = "Pay request for purchase '%s' returned status '%s'. \nFull response: %s" % (
-                            self.cart, response)
+                            self.cart, status.text, response)
                 self.log.warn(msg)
                 self.cart.notes.create(text=msg)
             self.cart.update_state()

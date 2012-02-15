@@ -25,4 +25,5 @@ SETTINGS = {
     "REATTEMPT" : True,
     "ENCRYPT" : False,
     "IPN_URL" : "",
+    "API_VERSION" : "76.0",
     }

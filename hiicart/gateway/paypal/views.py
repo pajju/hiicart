@@ -41,7 +41,8 @@ def _base_paypal_ipn_listener(request, ipn_class):
     # Verify the data with Paypal
     cart = _find_cart(data)
     if not cart:
-        raise GatewayError('paypal gateway: Unknown transaction')
+        log.error("paypal gateway: Unknown transaction: %s" % data)
+        return HttpResponse()
     handler = ipn_class(cart)
     if not handler.confirm_ipn_data(request.raw_post_data):
         log.error("Paypal IPN Confirmation Failed.")
@@ -64,9 +65,11 @@ def _base_paypal_ipn_listener(request, ipn_class):
         handler.activate_subscription(data)
     elif status == "Completed":
         handler.accept_payment(data)
+    elif status == "Refunded":
+        handler.payment_refunded(data)
     else:
         log.info("Unknown IPN type or status. Type: %s\tStatus: %s" %
-                 (status, txn_type))
+                 (txn_type, status))
     return HttpResponse()
     
 

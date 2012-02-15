@@ -53,7 +53,6 @@ class PaypalIPN(IPNBase):
         self.cart.ship_postal_code = self.cart.ship_postal_code or self.cart.bill_postal_code
         self.cart.bill_country = self.cart.bill_country or data.get("address_country_code", "")
         self.cart.ship_country = self.cart.ship_country or self.cart.bill_country
-        self.cart.save()
         payment = self._create_payment(data["mc_gross"], transaction_id, "PENDING")
         payment.state = "PAID" # Ensure proper state transitions
         payment.save()
@@ -61,6 +60,7 @@ class PaypalIPN(IPNBase):
             payment.notes.create(text="Comment via Paypal IPN: \n%s" % data["note"])
         self.cart.update_state()
         self.cart.save()
+
 
     def activate_subscription(self, data):
         """Send signal that a subscription has been activated."""
@@ -92,6 +92,15 @@ class PaypalIPN(IPNBase):
             item.save()
             self.cart.update_state()
             self.cart.save()
+
+    def payment_refunded(self, data):
+        """Accept a refund notification.
+        mc_gross will be negative
+        """
+        transaction_id = data["txn_id"]
+        payment = self._create_payment(data["mc_gross"], transaction_id, "REFUND")
+        self.cart.update_state()
+        self.cart.save()
 
     def confirm_ipn_data(self, raw_data):
         """Confirm IPN data using string raw post data.
