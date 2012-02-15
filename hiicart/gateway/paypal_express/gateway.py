@@ -18,23 +18,24 @@ REDIRECT_TEST_URL = "https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_express-
 
 NO_SHIPPING = {
     "REQUIRE": "2",
-    "NO" : "1",
-    "YES" : "0"
-    }
+    "NO": "1",
+    "YES": "0"
+}
 ALLOW_NOTE = {
-    "YES" : "1",
-    "NO" : "0"
-    }
+    "YES": "1",
+    "NO": "0"
+}
 RECURRING_PAYMENT = {
-    "YES" : "1",
-    "NO" : "0"
-    }
+    "YES": "1",
+    "NO": "0"
+}
 BILLING_PERIOD = {
-    "DAY" : "Day",
-    "WEEK" : "Week",
-    "MONTH" : "Month",
-    "YEAR" : "Year"
-    }
+    "DAY": "Day",
+    "WEEK": "Week",
+    "MONTH": "Month",
+    "YEAR": "Year"
+}
+
 
 class PaypalExpressCheckoutGateway(PaymentGatewayBase):
     """Paypal Express Checkout processor"""
@@ -80,19 +81,18 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
     def _get_billing_address_params(self, keyprefix=''):
         params = SortedDict()
-        params[keyprefix+'shiptoname'] = '%s %s' % (self.cart.bill_first_name, self.car.bill_last_name)
-        params[keyprefix+'shiptostreet'] = self.cart.bill_street1
-        params[keyprefix+'shiptostreet2'] = self.cart.bill_street2
-        params[keyprefix+'shiptocity'] = self.cart.bill_city
-        params[keyprefix+'shiptostate'] = self.cart.bill_state
-        params[keyprefix+'shiptocountrycode'] = self.cart.bill_country
-        params[keyprefix+'shiptozip'] = self.cart.bill_zip
+        params[keyprefix + 'shiptoname'] = '%s %s' % (self.cart.bill_first_name, self.car.bill_last_name)
+        params[keyprefix + 'shiptostreet'] = self.cart.bill_street1
+        params[keyprefix + 'shiptostreet2'] = self.cart.bill_street2
+        params[keyprefix + 'shiptocity'] = self.cart.bill_city
+        params[keyprefix + 'shiptostate'] = self.cart.bill_state
+        params[keyprefix + 'shiptocountrycode'] = self.cart.bill_country
+        params[keyprefix + 'shiptozip'] = self.cart.bill_zip
         return params
 
     def _is_immediate_payment(self, item):
         return item.recurring_start is None or item.recurring_start.date() == datetime.today()
 
-    
     def _get_checkout_data(self):
         """Populate request params from shopping cart"""
         params = SortedDict()
@@ -115,9 +115,9 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         # We don't support parallel payments, so all PAYMENTREQUEST fields will
         # just use this one prefix
         pre = 'paymentrequest_0_'
-        
-        params[pre+'invnum'] = self.cart.cart_uuid
-        params[pre+'currencycode'] = self.settings['CURRENCY_CODE']
+
+        params[pre + 'invnum'] = self.cart.cart_uuid
+        params[pre + 'currencycode'] = self.settings['CURRENCY_CODE']
 
         do_immediate_payment = False
         if len(self.cart.recurring_lineitems) == 0:
@@ -128,21 +128,21 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
         if do_immediate_payment:
             # Total cost of transaction to customer, including shipping, handling, and tax if known
-            params[pre+'amt'] = self.cart.total.quantize(Decimal('.01'))
+            params[pre + 'amt'] = self.cart.total.quantize(Decimal('.01'))
             # Sub-total of all items in order
-            params[pre+'itemamt'] = self.cart.sub_total.quantize(Decimal('.01'))
+            params[pre + 'itemamt'] = self.cart.sub_total.quantize(Decimal('.01'))
             # Shipping amount
-            params[pre+'shippingamt'] = self.cart.shipping.quantize(Decimal('.01')) if self.cart.shipping else Decimal('0.00')
+            params[pre + 'shippingamt'] = self.cart.shipping.quantize(Decimal('.01')) if self.cart.shipping else Decimal('0.00')
             # Tax amount
-            params[pre+'taxamt'] = self.cart.tax.quantize(Decimal('.01')) if self.cart.tax else Decimal('0.00')
+            params[pre + 'taxamt'] = self.cart.tax.quantize(Decimal('.01')) if self.cart.tax else Decimal('0.00')
         else:
             # No initial payment for this recurring payment
-            params[pre+'amt'] = '0.00'
+            params[pre + 'amt'] = '0.00'
             params['maxamt'] = self.cart.total.quantize(Decimal('0.01'))
 
         # Not using parallel payments, so this is always Sale
-        params[pre+'paymentaction'] = 'Sale'
-        params[pre+'notifyurl'] = self.settings['IPN_URL']
+        params[pre + 'paymentaction'] = 'Sale'
+        params[pre + 'notifyurl'] = self.settings['IPN_URL']
 
         # Populate line items
         pre = 'l_paymentrequest_0_'
@@ -155,26 +155,26 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             item = self.cart.recurring_lineitems[0]
             params['l_billingtype%i' % idx] = 'RecurringPayments'
             params['l_billingagreementdescription%i' % idx] = item.description
-            params[pre+'name%i' % idx] = item.name
-            params[pre+'number%i' % idx] = item.sku
-            
+            params[pre + 'name%i' % idx] = item.name
+            params[pre + 'number%i' % idx] = item.sku
+
             if self._is_immediate_payment(item):
                 # No delay to start of recurring billing, so we need to set up an initial payment.
                 # We'll push the start of the recurring billing back by one cycle when we create the
                 # recurring payment profile.
-                params[pre+'amt%i' % idx] = item.recurring_price
+                params[pre + 'amt%i' % idx] = item.recurring_price
             else:
-                params[pre+'amt%i' % idx] = '0.00'
+                params[pre + 'amt%i' % idx] = '0.00'
             # Recurring charge, duration, frequency, trial are all set with CreateRecurringPaymentsProfile
             idx += 1
 
         # Add one-time line items
         for item in self.cart.one_time_lineitems:
-            params[pre+'name%i' % idx] = item.name
-            params[pre+'desc%i' % idx] = item.description
-            params[pre+'amt%i' % idx] = item.total.quantize(Decimal('.01'))
-            params[pre+'qty%i' % idx] = item.quantity
-            params[pre+'number%i' % idx] = item.sku
+            params[pre + 'name%i' % idx] = item.name
+            params[pre + 'desc%i' % idx] = item.description
+            params[pre + 'amt%i' % idx] = item.total.quantize(Decimal('.01'))
+            params[pre + 'qty%i' % idx] = item.quantity
+            params[pre + 'number%i' % idx] = item.sku
             idx += 1
 
         if self.cart.bill_street1:
@@ -214,7 +214,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
         params['billingperiod'] = BILLING_PERIOD[item.duration_unit]
         params['billingfrequency'] = item.duration
-        
+
         if item.trial:
             params['trialbillingperiod'] = item.duration_unit
             params['trialbillingfrequency'] = item.duration
@@ -234,17 +234,17 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         # Fill in shipping information
         property_names = {
                 'EMAIL': 'ship_email',
-                pre+'SHIPTOSTREET': 'ship_street1',
-                pre+'SHIPTOSTREET2': 'ship_street2',
-                pre+'SHIPTOCITY': 'ship_city',
-                pre+'SHIPTOSTATE': 'ship_state',
-                pre+'SHIPTOZIP': 'ship_postal_code',
-                pre+'SHIPTOCOUNTRYCODE': 'ship_country'
+                pre + 'SHIPTOSTREET': 'ship_street1',
+                pre + 'SHIPTOSTREET2': 'ship_street2',
+                pre + 'SHIPTOCITY': 'ship_city',
+                pre + 'SHIPTOSTATE': 'ship_state',
+                pre + 'SHIPTOZIP': 'ship_postal_code',
+                pre + 'SHIPTOCOUNTRYCODE': 'ship_country'
                 }
         for pp_field, cart_field in property_names.iteritems():
             setattr(self.cart, cart_field, getattr(self.cart, cart_field) or details.get(pp_field, ''))
 
-        shiptoname = details.get(pre+'SHIPTONAME', '')
+        shiptoname = details.get(pre + 'SHIPTONAME', '')
         if shiptoname:
             name_parts = shiptoname.split(' ')
             firstname = ' '.join(name_parts[:-1])
@@ -266,26 +266,26 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
         params = self._get_checkout_data()
         response = self._do_nvp('SetExpressCheckout', params)
-        
+
         token = response['TOKEN']
         url = self._create_redirect_url(token)
         return SubmitResult('url', url, session_args={'hiicart_paypal_express_token': token})
 
     def get_details(self, token):
         """Get details from Paypal about payer and payment."""
-        params = {'token' : token}
+        params = {'token': token}
         response = self._do_nvp('GetExpressCheckoutDetails', params)
 
         payerid = response['PAYERID']
         self._update_cart_details(response)
         # TODO: user-defined callback on get_details to update cart?
-        
+
         if self.settings.get("CONFIRM_URL"):
             url = self.settings["CONFIRM_URL"]
         else:
             # No confirm_url specified, so assume we go straight to finalizing the order
             url = self.settings["FINALIZE_URL"]
-        
+
         session_args = {
             'hiicart_paypal_express_token': token,
             'hiicart_paypal_express_payerid': payerid
