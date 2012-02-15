@@ -186,6 +186,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
     def _get_recurring_data(self):
         """Populate request params for establishing recurring payments"""
+        pre = 'paymentrequest_0_'
         params = SortedDict()
 
         if len(self.cart.recurring_lineitems) == 0:
@@ -229,7 +230,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         return params
 
     def _update_cart_details(self, details):
-        pre = 'PAYMENTREQUEST_0_'
+        pre = 'paymentrequest_0_'
 
         # Fill in shipping information
         property_names = {
