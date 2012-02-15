@@ -8,8 +8,9 @@ from django.utils.safestring import mark_safe
 from django.utils.datastructures import SortedDict
 from dateutil.relativedelta import relativedelta
 
-from hiicart.gateway.base import PaymentGatewayBase, SubmitResult, GatewayError
+from hiicart.gateway.base import PaymentGatewayBase, SubmitResult, GatewayError, CancelResult
 from hiicart.gateway.paypal_express.settings import SETTINGS as default_settings
+from hiicart.models import HiiCartError
 
 NVP_SIGNATURE_TEST_URL = "https://api-3t.sandbox.paypal.com/nvp"
 NVP_SIGNATURE_URL = "https://api-3t.paypal.com/nvp"
@@ -333,9 +334,19 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         # Can't validate credentials with Paypal AFAIK
         return True
 
-    def cancel_recurring(self):
+    def cancel_recurring(self, token, profileid):
         """Cancel recurring items with gateway. Returns a CancelResult."""
-        pass
+        params = {
+            'token': token,
+            'profileid': profileid,
+            'action': 'cancel',
+        }
+        response = self._do_nvp('ManageRecurringPaymentsProfileStatus', params)
+        if 'ACK' in response and response['ACK'].lower() == 'success':
+            return CancelResult(None)
+        elif 'L_LONGMESSAGE0' in response:
+            raise HiiCartError('Error Canceling Recurring Payment %s: %s' % (profileid, response['L_LONGMESSAGE0']))
+        raise HiiCartError('Unknown Error Canceling Recurring Payment %s' % (profileid))
 
     def charge_recurring(self, grace_period=None):
         """This Paypal API doesn't support manually charging subscriptions."""
