@@ -11,6 +11,7 @@ STORE_SETTINGS = {
         'COMPLETE_URL': 'http://goodsietest.com/complete_url'
         }
 
+
 class PaypalExpressCheckoutTestCase(base.HiiCartTestCase):
     """Paypal Express Checkout tests"""
 
@@ -26,7 +27,7 @@ class PaypalExpressCheckoutTestCase(base.HiiCartTestCase):
     def test_submit_recurring(self):
         """Test submitting a cart with recurring items to express checkout"""
         self.cart.hiicart_settings.update(STORE_SETTINGS)
-        item = self._add_recurring_item()
+        self._add_recurring_item()
         self.assertEquals(self.cart.state, "OPEN")
         result = self.cart.submit("paypal_express", False, {'request': None})
         self.assertEqual(result.type, "url")
@@ -48,7 +49,7 @@ class PaypalExpressCheckoutTestCase(base.HiiCartTestCase):
 
         self.cart.hiicart_settings.update(STORE_SETTINGS)
         gateway = PaypalExpressCheckoutGateway(self.cart)
-        
+
         gateway._update_cart_details(pp_params)
 
         self.assertEqual(self.cart.ship_first_name, 'Dmitri')
