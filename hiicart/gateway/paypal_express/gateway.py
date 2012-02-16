@@ -341,12 +341,11 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
             'profileid': profileid,
             'action': 'cancel',
         }
-        response = self._do_nvp('ManageRecurringPaymentsProfileStatus', params)
-        if 'ACK' in response and response['ACK'].lower() == 'success':
+        try:
+            self._do_nvp('ManageRecurringPaymentsProfileStatus', params)
             return CancelResult(None)
-        elif 'L_LONGMESSAGE0' in response:
-            raise HiiCartError('Error Canceling Recurring Payment %s: %s' % (profileid, response['L_LONGMESSAGE0']))
-        raise HiiCartError('Unknown Error Canceling Recurring Payment %s' % (profileid))
+        except Exception, e:
+            raise e
 
     def charge_recurring(self, grace_period=None):
         """This Paypal API doesn't support manually charging subscriptions."""
