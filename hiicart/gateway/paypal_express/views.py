@@ -7,6 +7,7 @@ from hiicart.gateway.paypal.views import _base_paypal_ipn_listener
 from hiicart.utils import format_exceptions, cart_by_uuid
 from hiicart.gateway.base import GatewayError
 
+
 def _find_cart(request):
     request_data = request.GET
     uuid = request_data.get('cart') or request.session.get('hiicart_cart_uuid')
@@ -14,6 +15,7 @@ def _find_cart(request):
     if not cart:
         raise GatewayError("Paypal Express Checkout: Unknown transaction with cart uuid %s" % uuid)
     return cart
+
 
 @never_cache
 def get_details(request):
@@ -28,6 +30,7 @@ def get_details(request):
     request.session.update(result.session_args)
 
     return HttpResponseRedirect(result.url)
+
 
 @never_cache
 def finalize(request):
