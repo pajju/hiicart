@@ -334,15 +334,19 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         # Can't validate credentials with Paypal AFAIK
         return True
 
-    def cancel_recurring(self, token, profileid):
+    def cancel_recurring(self, profileid):
         """Cancel recurring items with gateway. Returns a CancelResult."""
         params = {
-            'token': token,
             'profileid': profileid,
             'action': 'cancel',
         }
         try:
             self._do_nvp('ManageRecurringPaymentsProfileStatus', params)
+            # make sure the line item is not acitive
+            item = self.cart.recurring_lineitems[0]
+            item.is_active = False
+            item.save()
+            self.cart.update_state()
             return CancelResult(None)
         except Exception, e:
             raise e
