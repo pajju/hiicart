@@ -24,7 +24,7 @@ def get_details(request):
     gateway = PaypalExpressCheckoutGateway(cart)
 
     result = gateway.get_details(token)
-    
+
     request.session.update(result.session_args)
 
     return HttpResponseRedirect(result.url)
@@ -47,4 +47,4 @@ def finalize(request):
 @format_exceptions
 @never_cache
 def ipn(request):
-    return _base_paypal_ipn(request, PaypalExpressCheckoutIPN)
+    return _base_paypal_ipn_listener(request, PaypalExpressCheckoutIPN)
