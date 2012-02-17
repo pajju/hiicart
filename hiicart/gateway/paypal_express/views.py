@@ -37,7 +37,9 @@ def finalize(request):
     token = request.GET.get('token', None)
     if not token:
         token = request.session.get('hiicart_paypal_express_token')
-    payerid = request.session.get('hiicart_paypal_express_payerid')
+    payerid = request.GET.get('PayerID', None)
+    if not payerid:
+        payerid = request.session.get('hiicart_paypal_express_payerid')
     cart = _find_cart(request)
     gateway = PaypalExpressCheckoutGateway(cart)
 
