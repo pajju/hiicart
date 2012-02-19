@@ -53,6 +53,8 @@ class PaypalIPN(IPNBase):
         self.cart.ship_postal_code = self.cart.ship_postal_code or self.cart.bill_postal_code
         self.cart.bill_country = self.cart.bill_country or data.get("address_country_code", "")
         self.cart.ship_country = self.cart.ship_country or self.cart.bill_country
+        # This save() is critical to persist cart details out to the DB before the Payment is saved
+        # and subsequent signals are fired.
         self.cart.save()
         payment = self._create_payment(data["mc_gross"], transaction_id, "PENDING")
         payment.state = "PAID" # Ensure proper state transitions
