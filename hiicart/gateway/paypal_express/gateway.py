@@ -88,7 +88,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         params[keyprefix + 'shiptocity'] = self.cart.bill_city
         params[keyprefix + 'shiptostate'] = self.cart.bill_state
         params[keyprefix + 'shiptocountrycode'] = self.cart.bill_country
-        params[keyprefix + 'shiptozip'] = self.cart.bill_zip
+        params[keyprefix + 'shiptozip'] = self.cart.bill_postal_code
         return params
 
     def _is_immediate_payment(self, item):
