@@ -80,6 +80,11 @@
       <shipping-methods>
         <flat-rate-shipping name="{{ cart.shipping_option_name }}">
           <price currency="{{ currency }}">{{ cart.shipping }}</price>
+          <shipping-restrictions>
+            <allowed-areas>
+              <world-area/>
+            </allowed-areas>
+          </shipping-restrictions>
         </flat-rate-shipping>
       </shipping-methods>
       {% endif %}
