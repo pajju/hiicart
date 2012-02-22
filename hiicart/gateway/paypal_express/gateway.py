@@ -82,7 +82,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
     def _get_billing_address_params(self, keyprefix=''):
         params = SortedDict()
-        params[keyprefix + 'shiptoname'] = '%s %s' % (self.cart.bill_first_name, self.car.bill_last_name)
+        params[keyprefix + 'shiptoname'] = '%s %s' % (self.cart.bill_first_name, self.cart.bill_last_name)
         params[keyprefix + 'shiptostreet'] = self.cart.bill_street1
         params[keyprefix + 'shiptostreet2'] = self.cart.bill_street2
         params[keyprefix + 'shiptocity'] = self.cart.bill_city
