@@ -11,7 +11,7 @@
          <quantity>{{ lineitem.quantity }}</quantity>
          <merchant-item-id>{{ lineitem.sku }}</merchant-item-id>
          <unit-price currency="{{ currency }}">{{ lineitem.unit_price|floatformat:2 }}</unit-price>
-         {% if lineitem.digital_description %}
+         {% if lineitem.digital_description and not cart.shipping %}
          <digital-content>
            <description>{{ lineitem.digital_description }}</description>
          </digital-content>
@@ -44,7 +44,7 @@
             <merchant-item-id>{{ lineitem.sku }}</merchant-item-id>
             <unit-price currency="{{ currency }}">{{ lineitem.recurring_price|floatformat:2 }}</unit-price>
             <merchant-private-item-data>{{ cart.cart_uuid }}</merchant-private-item-data>
-            {% if lineitem.digital_description %}
+            {% if lineitem.digital_description and not cart.shipping %}
             <digital-content>
               <description>{{ lineitem.digital_description }}</description>
             </digital-content>
@@ -80,6 +80,11 @@
       <shipping-methods>
         <flat-rate-shipping name="{{ cart.shipping_option_name }}">
           <price currency="{{ currency }}">{{ cart.shipping }}</price>
+          <shipping-restrictions>
+            <allowed-areas>
+              <world-area/>
+            </allowed-areas>
+          </shipping-restrictions>
         </flat-rate-shipping>
       </shipping-methods>
       {% endif %}
