@@ -1,8 +1,8 @@
 import unittest
 
-import comp, google, core, auditing
+import comp, google, core, auditing, paypal_express
 
-__tests__ = [comp, google, core, auditing]
+__tests__ = [comp, google, core, auditing, paypal_express]
 
 def suite():
     suite = unittest.TestSuite()
