@@ -30,9 +30,7 @@ def cbui(request, settings=None):
     """
     log.debug("CBUI Received: \n%s" % pprint.pformat(dict(request.GET), indent=10))
     if "errorMessage" in request.GET:
-        for msg in request.GET["errorMessage"]:
-            log.error(msg)
-        cart = None
+        raise Exception(request.GET["errorMessage"])
     else:    
         cart = _find_cart(request.GET)
     handler = AmazonIPN(cart)

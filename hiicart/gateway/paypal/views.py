@@ -14,7 +14,7 @@ log = logging.getLogger("hiicart.gateway.paypal")
 
 def _find_cart(data):
     # invoice may have a suffix due to retries
-    invoice = data.get('invoice') or data.get('item_number')
+    invoice = data.get('invoice') or data.get('item_number') or data.get('rp_invoice_id')
     if not invoice:
         log.warn("No invoice # in data, aborting IPN")
         return None
