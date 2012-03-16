@@ -253,15 +253,20 @@ class BraintreeGateway(PaymentGatewayBase):
 
         redirect_url = request.build_absolute_uri(request.path)
 
-        subscription_id = self.cart.payment_token
+        subscription_id = self.cart.recurring_lineitems[0].payment_token
         subscription = braintree.Subscription.find(subscription_id)
+        payment_method_token = subscription.payment_method_token
+        customers = braintree.Customer.search(braintree.CustomerSearch.payment_method_token == payment_method_token)
+        customers = list(customers.items)
+        customer = customers[0]
 
-        tr_data = braintree.CreditCard.tr_data_for_update({
-            'payment_method_token': subscription.payment_method_token,
-            'credit_card': {
-                'billing_address': {
+        tr_data = braintree.Customer.tr_data_for_update({
+            'customer_id': customer.id,
+            'customer': {
+                'credit_card': {
                     'options': {
-                        'update_existing': True
+                        'verify_card': True,
+                        'make_default': True
                     }
                 }
             }
@@ -282,8 +287,15 @@ class BraintreeGateway(PaymentGatewayBase):
                                 gateway_result=None)
 
         if result.is_success:
+            subscription_id = self.cart.recurring_lineitems[0].payment_token
+            for cc in result.customer.credit_cards:
+                if cc.default:
+                    payment_method_token = cc.token
+            sub_result = braintree.Subscription.update(subscription_id, {
+                'payment_method_token': payment_method_token
+            })
             return SubscriptionResult(transaction_id=None,
-                    success=True, status='success', gateway_result=result.gateway_result)
+                    success=True, status='success', gateway_result=result)
 
         errors = {}
         status = None
@@ -303,4 +315,4 @@ class BraintreeGateway(PaymentGatewayBase):
 
         return SubscriptionResult(transaction_id=None, 
                             success=False, status=status, errors=errors,
-                            gateway_result=result.gateway_result)
+                            gateway_result=result)
