@@ -243,3 +243,64 @@ class BraintreeGateway(PaymentGatewayBase):
         for t in transactions:
             handler.accept_payment(t)
 
+
+    def start_update(self, request):
+        """
+        Start the process of updating payment information for a subscription.
+        """
+        if not self.is_recurring:
+            raise NotImplementedError("Only recurring subscriptions can be updated")
+
+        redirect_url = request.build_absolute_uri(request.path)
+
+        subscription_id = self.cart.payment_token
+        subscription = braintree.Subscription.find(subscription_id)
+
+        tr_data = braintree.CreditCard.tr_data_for_update({
+            'payment_method_token': subscription.payment_method_token,
+            'credit_card': {
+                'billing_address': {
+                    'options': {
+                        'update_existing': True
+                    }
+                }
+            }
+        }, redirect_url)
+
+        return tr_data
+
+    def confirm_update(self, request):
+        """
+        Confirms credit card update result with Braintree.
+        """
+        try:
+            result = braintree.TransparentRedirect.confirm(request.META['QUERY_STRING'])
+        except Exception, e:
+            errors = {'non_field_errors': 'Request to payment gateway failed.'}
+            return SubscriptionResult(transaction_id=None, 
+                                success=False, status=None, errors=errors,
+                                gateway_result=None)
+
+        if result.is_success:
+            return SubscriptionResult(transaction_id=None,
+                    success=True, status='success', gateway_result=result.gateway_result)
+
+        errors = {}
+        status = None
+        verification = getattr(result, 'credit_card_verification', None)
+        if verification:
+            status = getattr(obj, 'status', None)
+            if status == 'processor_declined':
+                errors = {'non_field_errors': getattr(obj, 'processor_response_text', 'There was an error communicating with the gateway')}
+            elif status == 'gateway_rejected':
+                errors = {'non_field_errors': getattr(obj, 'gateway_rejection_reason', 'The card was declined')}
+        else:
+            message = getattr(result, 'message', None)
+            errors = {'non_field_errors': message}
+            if result.errors:
+                for error in result.errors.deep_errors:
+                    errors[error.attribute] = error.message
+
+        return SubscriptionResult(transaction_id=None, 
+                            success=False, status=status, errors=errors,
+                            gateway_result=result.gateway_result)
