@@ -367,7 +367,7 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         else:
             params.update({
                 'refundtype': 'Partial',
-                'amt': str(amount)
+                'amt': str(amount.quantize(Decimal('.01')))
             })
 
         self._do_nvp('RefundTransaction', params)

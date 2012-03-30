@@ -104,16 +104,16 @@ class GoogleGateway(PaymentGatewayBase):
         """
         Refund the full amount of this payment
         """
-        self.refund(payment.transaction_id, payment.amount, reason)
+        self.refund(payment, payment.amount, reason)
         payment.state = 'REFUND'
         payment.save()
 
-    def refund(self, transaction_id, amount, reason=None):
+    def refund(self, payment, amount, reason=None):
         """Refund a payment."""
         self._update_with_cart_settings({'request': None})
 
         template = loader.get_template("gateway/google/refund.xml")
-        ctx = Context({"transaction_id": transaction_id,
+        ctx = Context({"transaction_id": payment.transaction_id,
                        "reason": reason,
                        "comment": None,
                        "currency": self.settings["CURRENCY"],
