@@ -355,19 +355,23 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         """
         Refund the full amount of this payment
         """
-        self.refund(payment.transaction_id, payment.amount, reason)
+        self.refund(payment, payment.amount, reason)
         payment.state = 'REFUND'
         payment.save()
 
-    def refund(self, transaction_id, amount, reason=None):
+    def refund(self, payment, amount, reason=None):
         """Refund a payment."""
-        params = {
-            'transactionid': transaction_id,
-            'refundtype': 'Full',
-        }
+        params = {'transactionid': payment.transaction_id}
+        if payment.amount == amount:
+            params['refundtype'] = 'Full'
+        else:
+            params.update({
+                'refundtype': 'Partial',
+                'amt': str(amount)
+            })
+
         self._do_nvp('RefundTransaction', params)
         return SubmitResult(None)
-
 
     def charge_recurring(self, grace_period=None):
         """This Paypal API doesn't support manually charging subscriptions."""
