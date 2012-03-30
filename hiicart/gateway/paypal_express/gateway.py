@@ -100,7 +100,14 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
 
         # Urls for returning user after leaving Paypal
         if self.settings.get('RETURN_URL'):
-            params['returnurl'] = self.settings['RETURN_URL']
+            return_url = self.settings['RETURN_URL']
+            if '?' in return_url:
+                return_url += '&cart='
+            else:
+                return_url += '?cart='
+            return_url += self.cart._cart_uuid
+            params['returnurl'] = return_url
+
         if self.settings.get('CANCEL_URL'):
             params['cancelurl'] = self.settings['CANCEL_URL']
 
