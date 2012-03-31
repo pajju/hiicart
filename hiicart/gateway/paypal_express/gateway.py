@@ -294,6 +294,11 @@ class PaypalExpressCheckoutGateway(PaymentGatewayBase):
         else:
             # No confirm_url specified, so assume we go straight to finalizing the order
             url = self.settings["FINALIZE_URL"]
+        if '?' in url:
+            url += '&cart='
+        else:
+            url += '?cart='
+        url += self.cart._cart_uuid
 
         session_args = {
             'hiicart_paypal_express_token': token,
