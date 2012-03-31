@@ -303,3 +303,13 @@ class BraintreeGateway(PaymentGatewayBase):
         return SubscriptionResult(transaction_id=None,
                             success=False, status=status, errors=errors,
                             gateway_result=result)
+
+    def change_subscription_amount(self, subscription_id, new_price):
+        result = braintree.Subscription.update(subscription_id, {
+            'price': new_price,
+            'options': {
+                'prorate_charged': True,
+                'revert_subscription_on_proration_failure': False
+            }
+        })
+        return SubscriptionResult(transaction_id=None, success=result.is_success, status=None, errors={}, gateway_result=result)
