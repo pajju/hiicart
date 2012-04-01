@@ -64,8 +64,8 @@ class GoogleGateway(PaymentGatewayBase):
         self.cart.update_state()
         return CancelResult(None)
 
-    def cancel_recurring(self, payment, items=None, reason=None):
-        return self.cancel_items(payment, items, reason)
+    def cancel_recurring(self):
+        return self.cancel_items(self.cart.payments.filter(state='PAID').order_by('-created')[0]))
 
     def charge_recurring(self, grace_period=None):
         """HiiCart doesn't currently support manually charging subscriptions with Google Checkout"""
