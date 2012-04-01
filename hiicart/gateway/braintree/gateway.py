@@ -313,3 +313,12 @@ class BraintreeGateway(PaymentGatewayBase):
             }
         })
         return SubscriptionResult(transaction_id=None, success=result.is_success, status=None, errors={}, gateway_result=result)
+
+    def refund_payment(self, payment, reason=None):
+        self.refund(payment, payment.amount)
+        payment.state = 'REFUND'
+        payment.save()
+
+    def refund(self, payment, amount, reason=None):
+        result = braintree.Transaction.refund(payment.transaction_id, amount)
+        return SubscriptionResult(transaction_id=None, success=result.is_success, status=None, errors={}, gateway_result=result)
