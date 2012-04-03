@@ -324,5 +324,5 @@ class BraintreeGateway(PaymentGatewayBase):
     def refund(self, payment, amount, reason=None):
         result = braintree.Transaction.refund(payment.transaction_id, amount)
         if result.is_success:
-            self.cart._create_payment(amount * -1, result.transaction.id, 'REFUND')
+            self._create_payment(amount * -1, result.transaction.id, 'REFUND')
         return TransactionResult(transaction_id=result.transaction.id, success=result.is_success, status=None, errors={}, gateway_result=result)
