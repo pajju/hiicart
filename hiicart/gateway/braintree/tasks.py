@@ -23,5 +23,6 @@ def update_payment_status(hiicart_id, transaction_id, tries=0, cart_class=HiiCar
             tries = tries + 1
             update_payment_status.apply_async(args=[hiicart_id,
                                                     transaction_id,
-                                                    tries],
+                                                    tries,
+                                                    cart_class],
                                               countdown=14400)
